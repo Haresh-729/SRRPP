@@ -1,0 +1,1 @@
+// Configuration for table columns in the application. This file defines the structure and behavior of each column in data tables.

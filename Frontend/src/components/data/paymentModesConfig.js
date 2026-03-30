@@ -1,0 +1,1 @@
+// Configuration for payment mode values in the application. This file defines the possible payment modes and their display properties.
