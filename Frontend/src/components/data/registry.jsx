@@ -1,10 +1,14 @@
-import SuperAdminProfile from "../protected/Profile/SuperAdminProfile.jsx";
-import AdminProfile from "../protected/Profile/AdminProfile.jsx";
-import AccountantProfile from "../protected/Profile/AccountantProfile.jsx";
-import ViewerProfile from "../protected/Profile/ViewerProfile.jsx";
+import Profile from "../protected/Profile/Profile.jsx";
 import { ROLE_CODES } from "../../services/utils/rbac.js";
 
-import { IconBuildingSkyscraper, IconHome, IconSettings, IconBuildingBank } from "@tabler/icons-react";
+import {
+  IconBuildingSkyscraper,
+  IconHome,
+  IconSettings,
+  IconBuildingBank,
+} from "@tabler/icons-react";
+import PropertyTypes from "../protected/Masters/PropertyTypes.jsx";
+import Users from "../protected/UserAccess/Users.jsx";
 
 const features = [
   {
@@ -13,9 +17,31 @@ const features = [
     displayName: "Dashboard",
     logoUsed: IconHome,
     route: "/dashboard",
-    allowedRoles: [ROLE_CODES.SUPER_ADMIN, ROLE_CODES.ADMIN, ROLE_CODES.ACCOUNTANT, ROLE_CODES.VIEWER],
+    allowedRoles: [
+      ROLE_CODES.SUPER_ADMIN,
+      ROLE_CODES.ADMIN,
+      ROLE_CODES.ACCOUNTANT,
+      ROLE_CODES.VIEWER,
+    ],
     hasSubmenu: false,
     submenu: [],
+  },
+  {
+    id: "masters",
+    featureName: null,
+    displayName: "Masters",
+    logoUsed: IconBuildingSkyscraper,
+    route: null,
+    allowedRoles: [ROLE_CODES.ADMIN],
+    hasSubmenu: true,
+    submenu: [
+      {
+        label: "Property Types",
+        route: "/masters/property-types",
+        featureName: PropertyTypes,
+        allowedRoles: [ROLE_CODES.ADMIN],
+      },
+    ],
   },
   {
     id: "settings",
@@ -23,31 +49,42 @@ const features = [
     displayName: "Settings",
     logoUsed: IconSettings,
     route: null,
-    allowedRoles: [ROLE_CODES.SUPER_ADMIN, ROLE_CODES.ADMIN, ROLE_CODES.ACCOUNTANT, ROLE_CODES.VIEWER],
+    allowedRoles: [
+      ROLE_CODES.SUPER_ADMIN,
+      ROLE_CODES.ADMIN,
+      ROLE_CODES.ACCOUNTANT,
+      ROLE_CODES.VIEWER,
+    ],
     hasSubmenu: true,
     submenu: [
       {
-        label: "Account",
-        route: "/super-admin/profile",
-        featureName: SuperAdminProfile,
-        allowedRoles: [ROLE_CODES.SUPER_ADMIN],
-      },
-      {
-        label: "Account",
-        route: "/admin/profile",
-        featureName: AdminProfile,
+        label: "Users",
+        route: "/settings/users",
+        featureName: Users,
         allowedRoles: [ROLE_CODES.ADMIN],
       },
       {
         label: "Account",
-        route: "/accountant/profile",
-        featureName: AccountantProfile,
+        route: "/profile",
+        featureName: Profile,
+        allowedRoles: [ROLE_CODES.SUPER_ADMIN],
+      },
+      {
+        label: "Account",
+        route: "/profile",
+        featureName: Profile,
+        allowedRoles: [ROLE_CODES.ADMIN],
+      },
+      {
+        label: "Account",
+        route: "/profile",
+        featureName: Profile,
         allowedRoles: [ROLE_CODES.ACCOUNTANT],
       },
       {
         label: "Account",
-        route: "/viewer/profile",
-        featureName: ViewerProfile,
+        route: "/profile",
+        featureName: Profile,
         allowedRoles: [ROLE_CODES.VIEWER],
       },
     ],

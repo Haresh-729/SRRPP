@@ -1,1 +1,0 @@
-// Configuration for invoice status values in the application. This file defines the possible statuses and their display properties for invoices.

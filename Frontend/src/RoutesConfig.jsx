@@ -13,9 +13,6 @@ import { features } from "./components/data/registry.jsx";
 // import all the features here no need to create routes manually...
 import Login from "./components/common/Login.jsx";
 import NotFound from "./components/common/NotFound.jsx";
-import VerifyEmail from "./components/common/VerifyEmail.jsx";
-import Register from "./components/common/Register.jsx";
-import ResetPassword from "./components/common/ResetPassword.jsx";
 import { hasRoleAccess } from "./services/utils/rbac.js";
 import Profile from "./components/protected/Profile/Profile.jsx";
 
@@ -42,9 +39,9 @@ const RoutesConfig = () => {
           element={<HeroPage />}
         />
         <Route path="/login" key={"login"} element={<Login />} />
-        <Route path="/register" key={"register"} element={<Register />} />
-        <Route path="/reset-password" key={"reset-password"} element={<ResetPassword />} />
-        <Route path="/verify-email" key={"verify-email"} element={<VerifyEmail />} />
+        <Route path="/register" key={"register"} element={<Login />} />
+        <Route path="/reset-password" key={"reset-password"} element={<Login />} />
+        <Route path="/verify-email" key={"verify-email"} element={<Login />} />
         <Route path="/not-found" key={"not-found"} element={<NotFound />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

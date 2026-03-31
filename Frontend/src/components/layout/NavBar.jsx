@@ -2,13 +2,13 @@ import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   setCloseDMenu,
-  LogOut,
   dashboardMenuState,
   selectAccount,
   setDFeature,
   toggleTheme,
   isThemeDark,
 } from "../../app/DashboardSlice";
+import { logout } from "../../services/repository/AuthRepo.js";
 import { getProfileRouteByRole } from "../../services/utils/rbac.js";
 import { useNavigate } from "react-router-dom";
 import {
@@ -47,8 +47,7 @@ function NavBar() {
   };
 
   const logout = () => {
-    dispatch(LogOut());
-    navigate("/");
+    dispatch(logout(navigate));
   };
 
   return (
