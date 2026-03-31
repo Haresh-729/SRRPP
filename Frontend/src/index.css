@@ -15,24 +15,33 @@
 
 /* Theme variables managed from a single location. Project uses only light theme. */
 :root[data-theme="light"] {
-  --brand-primary: #0b5cab;
-  --brand-secondary: #ffffff;
-  --surface-bg: #f3f7fb;
+  --brand-primary: #1a6b3c;
+  --brand-secondary: #f0faf4;
+  --surface-bg: #f4f7f5;
   --surface-card: #ffffff;
-  --surface-border: #d8e2ee;
-  --text-main: #102a43;
-  --text-muted: #5f738c;
+  --surface-border: #d1e5d9;
+  --text-main: #0f2419;
+  --text-muted: #4a7560;
   --text-inverse: #ffffff;
+  --accent: #e8a020;
+  --danger: #d93025;
+  --success: #1e8c4a;
+  --warning: #e8a020;
 }
+
 :root[data-theme="dark"] {
-  --brand-primary: #4a9eff;
-  --brand-secondary: #0b1b2b;
-  --surface-bg: #0b1622;
-  --surface-card: #122235;
-  --surface-border: #25364a;
-  --text-main: #e8f0f8;
-  --text-muted: #9bb0c7;
-  --text-inverse: #0b1622;
+  --brand-primary: #2ecc71;
+  --brand-secondary: #0a1f12;
+  --surface-bg: #0b1a10;
+  --surface-card: #112318;
+  --surface-border: #1e3d28;
+  --text-main: #e6f4ec;
+  --text-muted: #7aab8a;
+  --text-inverse: #0b1a10;
+  --accent: #f0b429;
+  --danger: #f05252;
+  --success: #2ecc71;
+  --warning: #f0b429;
 }
 
 * {
