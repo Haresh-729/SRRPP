@@ -6,9 +6,18 @@ import {
   IconHome,
   IconSettings,
   IconBuildingBank,
+  IconWebhook,
+  IconFileText,
+  IconMoneybag,
+  IconChartBar,
 } from "@tabler/icons-react";
 import PropertyTypes from "../protected/Masters/PropertyTypes.jsx";
 import Users from "../protected/UserAccess/Users.jsx";
+import Properties from "../protected/Properties/Properties.jsx";
+import Brokers from "../protected/Brokers/Brokers.jsx";
+import Agreements from "../protected/Agreements/Agreements.jsx";
+import Payments from "../protected/Payments/Payments.jsx";
+import Reports from "../protected/Reports/Reports.jsx";
 
 const features = [
   {
@@ -23,6 +32,56 @@ const features = [
       ROLE_CODES.ACCOUNTANT,
       ROLE_CODES.VIEWER,
     ],
+    hasSubmenu: false,
+    submenu: [],
+  },
+  {
+    id: "properties",
+    featureName: Properties,
+    displayName: "Properties",
+    logoUsed: IconBuildingBank,
+    route: "/properties",
+    allowedRoles: [ROLE_CODES.ADMIN, ROLE_CODES.ACCOUNTANT, ROLE_CODES.VIEWER],
+    hasSubmenu: false,
+    submenu: [],
+  },
+  {
+    id: "brokers",
+    featureName: Brokers,
+    displayName: "Brokers",
+    logoUsed: IconWebhook,
+    route: "/brokers",
+    allowedRoles: [ROLE_CODES.ADMIN, ROLE_CODES.ACCOUNTANT, ROLE_CODES.VIEWER],
+    hasSubmenu: false,
+    submenu: [],
+  },
+  {
+    id: "agreements",
+    featureName: Agreements,
+    displayName: "Agreements",
+    logoUsed: IconFileText,
+    route: "/agreements",
+    allowedRoles: [ROLE_CODES.ADMIN, ROLE_CODES.ACCOUNTANT, ROLE_CODES.VIEWER],
+    hasSubmenu: false,
+    submenu: [],
+  },
+    {
+    id: "payments",
+    featureName: Payments,
+    displayName: "Payments",
+    logoUsed: IconMoneybag,
+    route: "/payments",
+    allowedRoles: [ROLE_CODES.ADMIN, ROLE_CODES.ACCOUNTANT, ROLE_CODES.VIEWER],
+    hasSubmenu: false,
+    submenu: [],
+  },
+  {
+    id: "reports",
+    featureName: Reports,
+    displayName: "Reports",
+    logoUsed: IconChartBar,
+    route: "/reports",
+    allowedRoles: [ROLE_CODES.ADMIN, ROLE_CODES.ACCOUNTANT, ROLE_CODES.VIEWER],
     hasSubmenu: false,
     submenu: [],
   },

@@ -30,7 +30,7 @@ function NavBar() {
   const user = useSelector(selectAccount);
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const profileRoute = getProfileRouteByRole(user?.roleCode || user?.role);
+  const profileRoute = "/profile";
 
   const handleThemeToggle = () => {
     dispatch(toggleTheme());
@@ -118,10 +118,10 @@ function NavBar() {
                     <IconUser className="w-5" />
                     <span>Account</span>
                   </button>
-                  <button className="w-full flex items-center space-x-3 px-4 py-2.5 text-sm text-(--text-main) hover:bg-(--surface-bg) transition-colors">
+                  {/* <button className="w-full flex items-center space-x-3 px-4 py-2.5 text-sm text-(--text-main) hover:bg-(--surface-bg) transition-colors">
                     <IconInbox className="w-5" />
                     <span>Inbox</span>
-                  </button>
+                  </button> */}
                   <button
                     onClick={() => {
                       navigate(profileRoute);

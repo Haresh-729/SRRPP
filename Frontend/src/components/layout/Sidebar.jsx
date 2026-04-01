@@ -9,7 +9,7 @@ import {
 } from "../../app/DashboardSlice.js";
 import { features } from "../data/registry.jsx";
 import { useNavigate } from "react-router-dom";
-import { IconChevronDown, IconLayout, IconChevronRight } from "@tabler/icons-react";
+import { IconBuildingSkyscraper, IconChevronDown, IconLayout, IconChevronRight } from "@tabler/icons-react";
 import { hasRoleAccess } from "../../services/utils/rbac.js";
 
 const Sidebar = ({ isOpen }) => {
@@ -37,11 +37,9 @@ const Sidebar = ({ isOpen }) => {
       {/* Logo */}
       <div className="px-5 py-2 flex items-center space-x-3 border-b border-white/10">
         <div className="w-9 h-9">
-          <svg fill="white" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-            <path d="M42.4379 44C42.4379 44 36.0744 33.9038 41.1692 24C46.8624 12.9336 42.2078 4 42.2078 4L7.01134 4C7.01134 4 11.6577 12.932 5.96912 23.9969C0.876273 33.9029 7.27094 44 7.27094 44L42.4379 44Z"></path>
-          </svg>
+          <IconBuildingSkyscraper className="w-full h-full text-white" />
         </div>
-        <span className="text-white text-xl font-black">BMS</span>
+        <span className="text-white text-xl font-black">SRRPP</span>
         <button
           className="ml-auto w-8 h-8 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center transition-colors"
           onClick={() => dispatch(setCloseDMenu({ dashboardMenuState: false }))}

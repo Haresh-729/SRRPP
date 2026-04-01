@@ -15,6 +15,7 @@ import Login from "./components/common/Login.jsx";
 import NotFound from "./components/common/NotFound.jsx";
 import { hasRoleAccess } from "./services/utils/rbac.js";
 import Profile from "./components/protected/Profile/Profile.jsx";
+import Dashboard from "./components/protected/Dashboard/Dashboard.jsx";
 
 const TemplateDashboard = () => (
   <section className="p-8">
@@ -87,8 +88,8 @@ const RoutesConfig = () => {
                 );
               })}
               <Route path="/profile" element={<Profile />} />
-              <Route path="/dashboard" element={<TemplateDashboard />} />
-              <Route path="/" element={<TemplateDashboard />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/" element={<Dashboard />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </main>
