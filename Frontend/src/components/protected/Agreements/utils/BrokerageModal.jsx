@@ -143,7 +143,7 @@ const BrokerageModal = ({ isOpen, mode, agreementId, monthlyRent, existing, onCl
                 className="relative w-11 h-6 rounded-full transition-colors"
                 style={{ backgroundColor: form.isPaid ? 'var(--brand-primary)' : 'var(--surface-border)' }}>
                 <span className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform"
-                  style={{ transform: form.isPaid ? 'translateX(22px)' : 'translateX(2px)' }} />
+                  style={{ transform: form.isPaid ? 'translateX(-2px)' : 'translateX(-20px)' }} />
               </button>
             </div>
             {form.isPaid && (

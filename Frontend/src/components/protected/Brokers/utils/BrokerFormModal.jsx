@@ -155,7 +155,7 @@ const BrokerFormModal = ({ isOpen, mode, selected, onClose, onSuccess }) => {
                   className="relative w-11 h-6 rounded-full transition-colors flex-shrink-0"
                   style={{ backgroundColor: form.isActive ? 'var(--brand-primary)' : 'var(--surface-border)' }}>
                   <span className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform"
-                    style={{ transform: form.isActive ? 'translateX(22px)' : 'translateX(2px)' }} />
+                    style={{ transform: form.isActive ? 'translateX(-2px)' : 'translateX(-20px)' }} />
                 </button>
               </div>
             )}

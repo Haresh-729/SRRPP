@@ -10,6 +10,7 @@ import {
   IconFileText,
   IconMoneybag,
   IconChartBar,
+  IconUser,
 } from "@tabler/icons-react";
 import PropertyTypes from "../protected/Masters/PropertyTypes.jsx";
 import Users from "../protected/UserAccess/Users.jsx";
@@ -18,6 +19,7 @@ import Brokers from "../protected/Brokers/Brokers.jsx";
 import Agreements from "../protected/Agreements/Agreements.jsx";
 import Payments from "../protected/Payments/Payments.jsx";
 import Reports from "../protected/Reports/Reports.jsx";
+import Tenants from "../protected/Tenants/Tenants.jsx";
 
 const features = [
   {
@@ -51,6 +53,16 @@ const features = [
     displayName: "Brokers",
     logoUsed: IconWebhook,
     route: "/brokers",
+    allowedRoles: [ROLE_CODES.ADMIN, ROLE_CODES.ACCOUNTANT, ROLE_CODES.VIEWER],
+    hasSubmenu: false,
+    submenu: [],
+  },
+  {
+    id: "tenants",
+    featureName: Tenants,
+    displayName: "Tenants",
+    logoUsed: IconUser,
+    route: "/tenants",
     allowedRoles: [ROLE_CODES.ADMIN, ROLE_CODES.ACCOUNTANT, ROLE_CODES.VIEWER],
     hasSubmenu: false,
     submenu: [],

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { IconX, IconLoader2 } from '@tabler/icons-react';
 import { createPropertyType, updatePropertyType } from '../../../../services/repository/PropertyTypeRepo.js';
+import { showConfirmToast } from '../../../../services/utils/toastUtils.jsx';
 
 // mode: 'CREATE' | 'EDIT'
 const PropertyTypeFormModal = ({ isOpen, mode, selected, onClose, onSuccess }) => {
@@ -42,9 +43,15 @@ const PropertyTypeFormModal = ({ isOpen, mode, selected, onClose, onSuccess }) =
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
   };
 
-  const handleClose = () => {
+  const handleClose = async () => {
     if (isDirty) {
-      if (!window.confirm('You have unsaved changes. Close anyway?')) return;
+      const shouldClose = await showConfirmToast('You have unsaved changes. Close anyway?', {
+        title: 'Discard changes?',
+        confirmText: 'Discard',
+        cancelText: 'Keep editing',
+      });
+
+      if (!shouldClose) return;
     }
     onClose();
   };
@@ -185,7 +192,7 @@ const PropertyTypeFormModal = ({ isOpen, mode, selected, onClose, onSuccess }) =
                   >
                     <span
                       className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform"
-                      style={{ transform: form.isActive ? 'translateX(22px)' : 'translateX(2px)' }}
+                      style={{ transform: form.isActive ? 'translateX(-2px)' : 'translateX(-20px)' }}
                     />
                   </button>
                 </div>

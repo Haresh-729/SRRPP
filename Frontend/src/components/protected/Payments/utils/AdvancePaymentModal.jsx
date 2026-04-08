@@ -23,7 +23,7 @@ const buildFutureMonths = (startDate, endDate) => {
   return months;
 };
 
-const AdvancePaymentModal = ({ isOpen, agreement, propertyName, tenantName, onClose, onSuccess }) => {
+const AdvancePaymentModal = ({ isOpen, agreement, propertyName, tenantName, advanceForMonth, onClose, onSuccess }) => {
   const dispatch  = useDispatch();
   const photoRef  = useRef(null);
   const [form, setForm]             = useState({ advanceForMonth: '', amount: '', paymentMode: 'CASH', receivedOn: '', chequeNumber: '', chequeDate: '', bankName: '', upiTransactionId: '', remarks: '' });
@@ -34,10 +34,10 @@ const AdvancePaymentModal = ({ isOpen, agreement, propertyName, tenantName, onCl
 
   useEffect(() => {
     if (!isOpen || !agreement) return;
-    setForm({ advanceForMonth: '', amount: '', paymentMode: 'CASH', receivedOn: '', chequeNumber: '', chequeDate: '', bankName: '', upiTransactionId: '', remarks: '' });
+    setForm({ advanceForMonth: advanceForMonth || '', amount: '', paymentMode: 'CASH', receivedOn: '', chequeNumber: '', chequeDate: '', bankName: '', upiTransactionId: '', remarks: '' });
     setPhoto(null); setErrors({});
     setFutureMonths(buildFutureMonths(agreement.start_date, agreement.end_date));
-  }, [isOpen, agreement]);
+  }, [isOpen, agreement, advanceForMonth]);
 
   const set = (f, v) => { setForm(p => ({ ...p, [f]: v })); setErrors(p => ({ ...p, [f]: undefined })); };
 

@@ -18,17 +18,23 @@ import PaymentDetailDrawer from './utils/PaymentDetailDrawer.jsx';
 import LedgerDetailDrawer from './utils/LedgerDetailDrawer.jsx';
 import RecordPaymentModal from './utils/RecordPaymentModal.jsx';
 import AdvancePaymentModal from './utils/AdvancePaymentModal.jsx';
+import RecordPaymentTab from './utils/RecordPaymentTab.jsx';
 
 const LIMIT = 10;
 const fmtMoney = (n) => n != null ? `₹${Number(n).toLocaleString('en-IN')}` : '—';
 const fmt      = (iso) => iso ? new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 const fmtMonth = (s)   => { if (!s) return '—'; const [y, m] = s.split('-'); return new Date(y, m - 1).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }); };
 const today    = new Date().toISOString().split('T')[0];
+const getOutstanding = (ledger) => {
+  const totalDue = Number(ledger?.total_due || 0);
+  const paid = Number(ledger?.paid_amount || 0);
+  return Math.max(totalDue - paid, 0);
+};
 
 const StatCard = ({ icon: Icon, label, value, color }) => (
   <div className="flex items-center gap-3 p-4 rounded-xl border"
     style={{ backgroundColor: 'var(--surface-card)', borderColor: 'var(--surface-border)' }}>
-    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+    <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
       style={{ backgroundColor: `${color}18` }}>
       <Icon size={18} style={{ color }} />
     </div>
@@ -106,7 +112,7 @@ const PaymentsTab = ({ properties, tenants, agreements, onPaymentView }) => {
         <StatCard icon={IconReceipt}        label="Total Payments"  value={meta.total}                  color="var(--brand-primary)" />
         <StatCard icon={IconCheck}          label="Total Collected" value={fmtMoney(totalAmt)}          color="var(--success)" />
         <StatCard icon={IconArrowForwardUp} label="Regular"        value={regular}                     color="var(--text-muted)" />
-        <StatCard icon={Icon}            label="Advance"         value={advance}                     color="var(--warning)" />
+        <StatCard icon={IconApiApp}      label="Advance"         value={advance}                     color="var(--warning)" />
       </div>
 
       {/* Card */}
@@ -187,7 +193,7 @@ const PaymentsTab = ({ properties, tenants, agreements, onPaymentView }) => {
                       onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
                       <td className="px-4 py-3 text-xs" style={{ color: 'var(--text-muted)' }}>{(page - 1) * LIMIT + idx + 1}</td>
                       <td className="px-4 py-3 text-xs font-semibold whitespace-nowrap" style={{ color: 'var(--text-main)' }}>{row.properties?.name || '—'}</td>
-                      <td className="px-4 py-3 text-xs max-w-[140px]">
+                      <td className="px-4 py-3 text-xs max-w-35">
                         <p className="font-semibold truncate" style={{ color: 'var(--text-main)' }}>{row.tenants?.full_name || '—'}</p>
                         <p className="truncate" style={{ color: 'var(--text-muted)' }}>{row.tenants?.email || ''}</p>
                       </td>
@@ -376,7 +382,7 @@ const LedgersTab = ({ properties, tenants, agreements, isAdmin }) => {
               <tbody>
                 {data.map((row, idx) => {
                   const carry   = Number(row.balance_from_previous);
-                  const balance = Number(row.balance_carried);
+                  const balance = getOutstanding(row);
                   const isOverdue = row.due_date && row.due_date < today && row.status !== 'PAID';
                   const canRecord = row.agreements?.status === 'ACTIVE' && !['PAID'].includes(row.status) && ['PENDING', 'PARTIAL', 'OVERDUE'].includes(row.status);
                   const canAdvance = row.agreements?.status === 'ACTIVE';
@@ -479,11 +485,13 @@ const Payments = () => {
   const account  = useSelector(selectAccount);
   const isAdmin  = normalizeRole(account?.roleCode || account?.role) === ROLE_CODES.ADMIN;
 
-  const [activeTab, setActiveTab]   = useState('ledgers');
+  const [activeTab, setActiveTab]   = useState('payments');
   const [properties, setProperties] = useState([]);
   const [tenants,    setTenants]    = useState([]);
   const [agreements, setAgreements] = useState([]);
   const [paymentDrawer, setPaymentDrawer] = useState({ open: false, id: null });
+  const [recordModal,  setRecordModal]  = useState({ open: false, ledger: null });
+  const [advanceModal, setAdvanceModal] = useState({ open: false, agreement: null, advanceForMonth: '' });
 
   useEffect(() => {
     dispatch(getPropertySummary()).then(r => { if (r && Array.isArray(r)) setProperties(r); });
@@ -502,7 +510,11 @@ const Payments = () => {
       {/* Tabs */}
       <div className="flex gap-1 p-1 rounded-xl mb-6 w-fit"
         style={{ backgroundColor: 'var(--surface-card)', border: '1px solid var(--surface-border)' }}>
-        {[{ key: 'ledgers', label: 'Ledgers', icon: IconBook2 }, { key: 'payments', label: 'Payments', icon: IconReceipt }].map(t => (
+        {[
+          { key: 'payments', label: 'Payments', icon: IconReceipt },
+          { key: 'record-payment', label: 'Record Payment', icon: IconArrowForwardUp },
+          { key: 'ledgers', label: 'Ledgers', icon: IconBook2 }
+        ].map(t => (
           <button key={t.key} onClick={() => setActiveTab(t.key)}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
             style={{
@@ -520,12 +532,33 @@ const Payments = () => {
           onPaymentView={id => setPaymentDrawer({ open: true, id })}
         />
       )}
+      {activeTab === 'record-payment' && (
+        <RecordPaymentTab
+          properties={properties}
+          agreements={agreements}
+          onRecordRegular={ledger => setRecordModal({ open: true, ledger })}
+          onRecordAdvance={(agreement, advanceForMonth) => setAdvanceModal({ open: true, agreement, advanceForMonth })}
+          onSuccess={() => {}}
+        />
+      )}
       {activeTab === 'ledgers' && (
         <LedgersTab properties={properties} tenants={tenants} agreements={agreements} isAdmin={isAdmin} />
       )}
 
       <PaymentDetailDrawer isOpen={paymentDrawer.open} paymentId={paymentDrawer.id}
         onClose={() => setPaymentDrawer(p => ({ ...p, open: false }))} />
+
+      <RecordPaymentModal isOpen={recordModal.open} ledger={recordModal.ledger}
+        onClose={() => setRecordModal(p => ({ ...p, open: false }))} onSuccess={() => setRecordModal({ open: false, ledger: null })} />
+
+      <AdvancePaymentModal
+        isOpen={advanceModal.open}
+        agreement={advanceModal.agreement}
+        propertyName={advanceModal.agreement?.properties?.name}
+        tenantName={advanceModal.agreement?.tenants?.full_name}
+        advanceForMonth={advanceModal.advanceForMonth}
+        onClose={() => setAdvanceModal({ open: false, agreement: null, advanceForMonth: '' })} 
+        onSuccess={() => setAdvanceModal({ open: false, agreement: null, advanceForMonth: '' })} />
     </div>
   );
 };

@@ -36,6 +36,7 @@ router.delete(
 // ── Admin + User ──────────────────────────────────────────────────────────────
 router.get('/',        propertyTypeController.getAllPropertyTypes);
 router.get('/active',  propertyTypeController.getActivePropertyTypes);
+router.get('/:id',     propertyTypeController.getPropertyTypeById);
 router.get('/byid/:id',     propertyTypeController.getPropertyTypeById);
 
 module.exports = router;

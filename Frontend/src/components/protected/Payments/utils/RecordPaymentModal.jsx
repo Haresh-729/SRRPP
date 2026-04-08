@@ -7,6 +7,11 @@ const fmt      = (iso) => iso ? new Date(iso).toLocaleDateString('en-IN', { day:
 const fmtMoney = (n)   => n   != null ? `₹${Number(n).toLocaleString('en-IN')}` : '—';
 const fmtMonth = (s)   => { if (!s) return '—'; const [y, m] = s.split('-'); return new Date(y, m - 1).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }); };
 const today    = new Date().toISOString().split('T')[0];
+const getOutstanding = (ledger) => {
+  const totalDue = Number(ledger?.total_due || 0);
+  const paid = Number(ledger?.paid_amount || 0);
+  return Math.max(totalDue - paid, 0);
+};
 
 const RecordPaymentModal = ({ isOpen, ledger, onClose, onSuccess }) => {
   const dispatch  = useDispatch();
@@ -22,7 +27,7 @@ const RecordPaymentModal = ({ isOpen, ledger, onClose, onSuccess }) => {
     setPhoto(null); setErrors({});
   }, [isOpen]);
 
-  const outstanding = ledger ? Number(ledger.balance_carried ?? ledger.total_due) : 0;
+  const outstanding = ledger ? getOutstanding(ledger) : 0;
   const set = (f, v) => { setForm(p => ({ ...p, [f]: v })); setErrors(p => ({ ...p, [f]: undefined })); };
 
   const validate = () => {
@@ -77,7 +82,7 @@ const RecordPaymentModal = ({ isOpen, ledger, onClose, onSuccess }) => {
       <div className="relative w-full max-w-lg rounded-2xl shadow-2xl flex flex-col max-h-[90vh]"
         style={{ backgroundColor: 'var(--surface-card)', border: '1px solid var(--surface-border)' }}>
 
-        <div className="flex items-center justify-between px-5 py-4 border-b flex-shrink-0"
+        <div className="flex items-center justify-between px-5 py-4 border-b shrink-0"
           style={{ borderColor: 'var(--surface-border)' }}>
           <h3 className="text-base font-semibold" style={{ color: 'var(--text-main)' }}>Record Payment</h3>
           <button onClick={onClose} className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ color: 'var(--text-muted)' }}><IconX size={16} /></button>
@@ -177,7 +182,7 @@ const RecordPaymentModal = ({ isOpen, ledger, onClose, onSuccess }) => {
                 style={{ borderColor: 'var(--surface-border)', backgroundColor: 'var(--surface-bg)', color: 'var(--text-main)' }} />
             </div>
           </div>
-          <div className="flex items-center justify-end gap-3 px-5 py-4 border-t flex-shrink-0" style={{ borderColor: 'var(--surface-border)' }}>
+          <div className="flex items-center justify-end gap-3 px-5 py-4 border-t shrink-0" style={{ borderColor: 'var(--surface-border)' }}>
             <button type="button" onClick={onClose} disabled={submitting}
               className="px-4 py-2 rounded-lg text-sm font-medium border disabled:opacity-50"
               style={{ borderColor: 'var(--surface-border)', color: 'var(--text-main)' }}

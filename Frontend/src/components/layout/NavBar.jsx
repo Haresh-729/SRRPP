@@ -8,7 +8,7 @@ import {
   toggleTheme,
   isThemeDark,
 } from "../../app/DashboardSlice";
-import { logout } from "../../services/repository/AuthRepo.js";
+import { logout as logoutUser } from "../../services/repository/AuthRepo.js";
 import { getProfileRouteByRole } from "../../services/utils/rbac.js";
 import { useNavigate } from "react-router-dom";
 import {
@@ -46,8 +46,8 @@ function NavBar() {
     );
   };
 
-  const logout = () => {
-    dispatch(logout(navigate));
+  const handleLogout = () => {
+    dispatch(logoutUser(navigate));
   };
 
   return (
@@ -138,7 +138,7 @@ function NavBar() {
                   </button>
                   <div className="border-t border-(--surface-border) my-1"></div>
                   <button
-                    onClick={logout}
+                    onClick={handleLogout}
                     className="w-full flex items-center space-x-3 px-4 py-2.5 text-sm text-(--text-main) hover:bg-(--surface-bg) transition-colors"
                   >
                     <IconLogout2 className="w-5" />

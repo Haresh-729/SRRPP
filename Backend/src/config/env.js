@@ -1,9 +1,22 @@
 ﻿require('dotenv').config();
 
+const parseCsv = (value, fallback = []) => {
+  if (!value) return fallback;
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+};
+
 const env = {
   NODE_ENV: process.env.NODE_ENV || 'development',
   PORT: parseInt(process.env.PORT, 10) || 3000,
   APP_URL: process.env.APP_URL || 'http://localhost:3000',
+  CORS_ALLOWED_ORIGINS: parseCsv(process.env.CORS_ALLOWED_ORIGINS, [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'https://76cf-2402-3a80-6c5-e33a-9db0-d038-d98e-a681.ngrok-free.app'
+  ]),
 
   DATABASE_URL: process.env.DATABASE_URL,
 

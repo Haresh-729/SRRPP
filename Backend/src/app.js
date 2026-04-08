@@ -18,10 +18,7 @@ const app = express();
 app.use(helmet());
 
 // ── CORS ───────────────────────────────────────────────────
-const allowedOrigins = [
-  'http://localhost:5173',
-  'http://localhost:3000',
-];
+const allowedOrigins = env.CORS_ALLOWED_ORIGINS;
 
 app.use(
   cors({
