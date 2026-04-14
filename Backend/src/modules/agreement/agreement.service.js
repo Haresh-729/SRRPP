@@ -3,42 +3,82 @@ const AppError = require('../../utils/AppError');
 const { getPagination, getPaginationMeta } = require('../../utils/pagination');
 const { deleteFile, getFileUrl } = require('../../utils/fileHelper');
 const { buildRentCycles } = require('../../utils/rentCalculator');
+const emailService = require('../notifications/email.service');
+const logger = require('../../config/logger');
 
 // ── Internal: generate rent ledger rows ───────────────────────────────────────
 
-const generateRentLedgers = (agreementId, propertyId, tenantId, cycles, durationMonths, rentDueDay, startDate) => {
+const generateRentLedgers = (
+  agreementId, propertyId, tenantId, cycles, durationMonths,
+  rentDueDay, startDate, gstApplicable, gstPercent, gstBillingType, gstAlternateStartsOn, gstInclusive
+) => {
   const ledgers = [];
 
   for (let i = 0; i < durationMonths; i++) {
     const ledgerDate = new Date(startDate);
     ledgerDate.setMonth(ledgerDate.getMonth() + i);
 
-    const year = ledgerDate.getFullYear();
+    const year  = ledgerDate.getFullYear();
     const month = ledgerDate.getMonth() + 1;
     const ledgerMonth = `${year}-${String(month).padStart(2, '0')}`;
 
-    // Which cycle does this month belong to (0-indexed → cycle array index)
     const cycleIndex = Math.min(Math.floor(i / 11), cycles.length - 1);
     const cycle = cycles[cycleIndex];
 
-    // Due date — cap to last day of month to avoid overflow
     const lastDayOfMonth = new Date(year, month, 0).getDate();
-    const dueDay = Math.min(rentDueDay, lastDayOfMonth);
+    const dueDay  = Math.min(rentDueDay, lastDayOfMonth);
     const dueDate = new Date(year, month - 1, dueDay);
 
+    // GST logic — monthNumber is 1-based position in agreement
+    const monthNumber = i + 1;
+    let gstApplicableThisMonth = false;
+    let gstAmount = 0;
+    let rentAmount = parseFloat(cycle.monthly_rent);
+
+    if (gstApplicable && gstPercent) {
+      if (gstBillingType === 'EVERY_MONTH') {
+        gstApplicableThisMonth = true;
+      } else if (gstBillingType === 'ALTERNATE_MONTH') {
+        // gstAlternateStartsOn: 1 = odd months (1,3,5...), 2 = even months (2,4,6...)
+        const startsOn = parseInt(gstAlternateStartsOn) || 1;
+        gstApplicableThisMonth = (monthNumber % 2) === (startsOn % 2);
+      }
+
+      if (gstApplicableThisMonth) {
+        const grossRent = parseFloat(cycle.monthly_rent);
+        const percent = parseFloat(gstPercent);
+
+        if (gstInclusive) {
+          const baseRent = parseFloat((grossRent / (1 + (percent / 100))).toFixed(2));
+          const gstPart = parseFloat((grossRent - baseRent).toFixed(2));
+          rentAmount = baseRent;
+          gstAmount = gstPart;
+        } else {
+          gstAmount = parseFloat(((grossRent * percent) / 100).toFixed(2));
+          rentAmount = grossRent;
+        }
+      }
+    }
+
+    const totalDue = gstApplicableThisMonth && gstInclusive
+      ? parseFloat(cycle.monthly_rent)
+      : parseFloat((rentAmount + gstAmount).toFixed(2));
+
     ledgers.push({
-      agreement_id: agreementId,
-      property_id: propertyId,
-      tenant_id: tenantId,
-      rent_cycle_id: cycle.id,
-      ledger_month: ledgerMonth,
-      rent_amount: cycle.monthly_rent,
-      balance_from_previous: 0,
-      total_due: cycle.monthly_rent,
-      paid_amount: 0,
-      balance_carried: 0,
-      due_date: dueDate,
-      status: 'PENDING',
+      agreement_id:             agreementId,
+      property_id:              propertyId,
+      tenant_id:                tenantId,
+      rent_cycle_id:            cycle.id,
+      ledger_month:             ledgerMonth,
+      rent_amount:              rentAmount,
+      gst_amount:               gstAmount,
+      gst_applicable_this_month: gstApplicableThisMonth,
+      balance_from_previous:    0,
+      total_due:                totalDue,
+      paid_amount:              0,
+      balance_carried:          0,
+      due_date:                 dueDate,
+      status:                   'PENDING',
     });
   }
 
@@ -107,6 +147,13 @@ const createAgreement = async (data, files) => {
   const rentEscalationPercent = data.rentEscalationPercent
     ? parseFloat(data.rentEscalationPercent)
     : null;
+  const gstApplicable        = data.gstApplicable === 'true' || data.gstApplicable === true;
+  const gstPercent           = gstApplicable && data.gstPercent ? parseFloat(data.gstPercent) : null;
+  const gstBillingType       = gstApplicable && data.gstBillingType ? data.gstBillingType : null;
+  const gstAlternateStartsOn = gstBillingType === 'ALTERNATE_MONTH' && data.gstAlternateStartsOn
+    ? parseInt(data.gstAlternateStartsOn)
+    : null;
+  const gstInclusive         = gstApplicable && (data.gstInclusive === 'true' || data.gstInclusive === true);
 
   // ── Validations ────────────────────────────────────────────────────────────
 
@@ -180,6 +227,11 @@ const createAgreement = async (data, files) => {
         rent_due_day: rentDueDay,
         deposit_amount: depositAmount,
         status: 'ACTIVE',
+        gst_applicable:         gstApplicable,
+        gst_percent:            gstPercent,
+        gst_billing_type:       gstBillingType,
+        gst_alternate_starts_on: gstAlternateStartsOn,
+        gst_is_inclusive:       gstInclusive,
       },
     });
 
@@ -206,7 +258,12 @@ const createAgreement = async (data, files) => {
       createdCycles,
       durationMonths,
       rentDueDay,
-      startDate
+      startDate,
+      gstApplicable,
+      gstPercent,
+      gstBillingType,
+      gstAlternateStartsOn,
+      gstInclusive
     );
 
     await tx.rent_ledgers.createMany({ data: ledgers });
@@ -273,7 +330,32 @@ const createAgreement = async (data, files) => {
     return agreement;
   });
 
-  return fetchFullAgreement(result.id);
+  const agreement = await fetchFullAgreement(result.id);
+
+  // Fire-and-log: agreement creation email should not fail creation response.
+  if (agreement?.tenants?.email) {
+    try {
+      await emailService.sendAgreementCreatedEmail({
+        to: agreement.tenants.email,
+        tenantName: agreement.tenants.full_name,
+        propertyName: agreement.properties?.name || 'Property',
+        startDate: agreement.start_date,
+        endDate: agreement.end_date,
+        durationMonths: agreement.duration_months,
+        monthlyRent: agreement.monthly_rent,
+        depositAmount: agreement.deposit_amount,
+        rentDueDay: agreement.rent_due_day,
+        gstApplicable: agreement.gst_applicable,
+        gstPercent: agreement.gst_percent,
+        gstBillingType: agreement.gst_billing_type,
+        gstIsInclusive: agreement.gst_is_inclusive,
+      });
+    } catch (error) {
+      logger.error(`Agreement created email failed for agreement ${agreement.id}: ${error.message}`);
+    }
+  }
+
+  return agreement;
 };
 
 // ── Get All Agreements ────────────────────────────────────────────────────────
@@ -436,7 +518,23 @@ const terminateAgreement = async (id, data) => {
     });
   });
 
-  return fetchFullAgreement(id);
+  const terminatedAgreement = await fetchFullAgreement(id);
+
+  if (terminatedAgreement?.tenants?.email) {
+    try {
+      await emailService.sendAgreementTerminatedEmail({
+        to: terminatedAgreement.tenants.email,
+        tenantName: terminatedAgreement.tenants.full_name,
+        propertyName: terminatedAgreement.properties?.name || 'Property',
+        terminatedAt: terminatedAgreement.terminated_at,
+        terminationReason: terminatedAgreement.termination_reason,
+      });
+    } catch (error) {
+      logger.error(`Agreement termination email failed for agreement ${id}: ${error.message}`);
+    }
+  }
+
+  return terminatedAgreement;
 };
 
 // ── Update / Add Deposit Payment ──────────────────────────────────────────────

@@ -13,6 +13,7 @@ import { features } from "./components/data/registry.jsx";
 // import all the features here no need to create routes manually...
 import Login from "./components/common/Login.jsx";
 import NotFound from "./components/common/NotFound.jsx";
+import ServerStatus from "./components/common/ServerStatus.jsx";
 import { hasRoleAccess } from "./services/utils/rbac.js";
 import Profile from "./components/protected/Profile/Profile.jsx";
 import Dashboard from "./components/protected/Dashboard/Dashboard.jsx";
@@ -43,6 +44,7 @@ const RoutesConfig = () => {
         <Route path="/register" key={"register"} element={<Login />} />
         <Route path="/reset-password" key={"reset-password"} element={<Login />} />
         <Route path="/verify-email" key={"verify-email"} element={<Login />} />
+        <Route path="/server-status" key={"server-status-public"} element={<ServerStatus />} />
         <Route path="/not-found" key={"not-found"} element={<NotFound />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
@@ -88,6 +90,7 @@ const RoutesConfig = () => {
                 );
               })}
               <Route path="/profile" element={<Profile />} />
+              <Route path="/server-status" element={<ServerStatus />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/" element={<Dashboard />} />
               <Route path="*" element={<NotFound />} />

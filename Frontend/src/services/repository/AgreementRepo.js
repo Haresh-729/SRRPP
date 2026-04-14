@@ -129,14 +129,14 @@ export function updateAgreementPdf(id, agreementPdf) {
 }
 
 // PATCH /v1/agreements/{id}/terminate
-// body: { terminationDate }
-// response: data: { id, status, terminationDate, updatedAt }
-export function terminateAgreement(id, terminationDate) {
+// body: { terminationReason }
+// response: data: { id, status, terminatedAt, terminationReason, updatedAt }
+export function terminateAgreement(id, terminationReason) {
   return async () => {
     const toastId = showLoadingToast('Terminating agreement...');
     try {
       const url = TERMINATE.url.replace('{id}', id);
-      const response = await apiConnector(TERMINATE.type, url, { terminationDate });
+      const response = await apiConnector(TERMINATE.type, url, { terminationReason });
 
       if (response.data.success) {
         showSuccessToast(response.data.message || 'Agreement terminated successfully.');

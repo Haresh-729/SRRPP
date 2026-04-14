@@ -48,6 +48,39 @@ const createAgreementSchema = Joi.object({
     'any.required': 'Deposit amount is required.',
   }),
 
+  // ── GST ────────────────────────────────────────────────────────────────────
+  gstApplicable: Joi.boolean().optional().default(false),
+  gstPercent: Joi.when('gstApplicable', {
+    is: true,
+    then: Joi.number().positive().max(100).required().messages({
+      'any.required': 'GST percent is required when GST is applicable.',
+      'number.positive': 'GST percent must be greater than 0.',
+      'number.max': 'GST percent cannot exceed 100%.',
+    }),
+    otherwise: Joi.number().optional().allow(null, ''),
+  }),
+  gstBillingType: Joi.when('gstApplicable', {
+    is: true,
+    then: Joi.string().valid('EVERY_MONTH', 'ALTERNATE_MONTH').required().messages({
+      'any.required': 'GST billing type is required when GST is applicable.',
+      'any.only': 'GST billing type must be EVERY_MONTH or ALTERNATE_MONTH.',
+    }),
+    otherwise: Joi.string().optional().allow(null, ''),
+  }),
+  gstAlternateStartsOn: Joi.when('gstBillingType', {
+    is: 'ALTERNATE_MONTH',
+    then: Joi.number().integer().valid(1, 2).required().messages({
+      'any.required': 'GST alternate start month is required for ALTERNATE_MONTH billing.',
+      'any.only': 'GST alternate start month must be 1 or 2.',
+    }),
+    otherwise: Joi.number().integer().optional().allow(null, ''),
+  }),
+  gstInclusive: Joi.when('gstApplicable', {
+    is: true,
+    then: Joi.boolean().optional().default(false),
+    otherwise: Joi.boolean().optional().allow(null, ''),
+  }),
+
   // ── Deposit payment at creation (all optional — can be added later) ────────
   depositReceivedOn: Joi.date().iso().optional().allow('', null),
   depositPaymentMode: Joi.string().valid('CASH', 'CHEQUE', 'UPI').optional().allow('', null),

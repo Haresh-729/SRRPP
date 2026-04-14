@@ -11,6 +11,7 @@ import {
   IconMoneybag,
   IconChartBar,
   IconUser,
+  IconServer,
 } from "@tabler/icons-react";
 import PropertyTypes from "../protected/Masters/PropertyTypes.jsx";
 import Users from "../protected/UserAccess/Users.jsx";
@@ -20,6 +21,7 @@ import Agreements from "../protected/Agreements/Agreements.jsx";
 import Payments from "../protected/Payments/Payments.jsx";
 import Reports from "../protected/Reports/Reports.jsx";
 import Tenants from "../protected/Tenants/Tenants.jsx";
+import ServerStatus from "../common/ServerStatus.jsx";
 
 const features = [
   {
@@ -94,6 +96,21 @@ const features = [
     logoUsed: IconChartBar,
     route: "/reports",
     allowedRoles: [ROLE_CODES.ADMIN, ROLE_CODES.ACCOUNTANT, ROLE_CODES.VIEWER],
+    hasSubmenu: false,
+    submenu: [],
+  },
+  {
+    id: "server-status",
+    featureName: ServerStatus,
+    displayName: "Server Status",
+    logoUsed: IconServer,
+    route: "/server-status",
+    allowedRoles: [
+      ROLE_CODES.SUPER_ADMIN,
+      ROLE_CODES.ADMIN,
+      ROLE_CODES.ACCOUNTANT,
+      ROLE_CODES.VIEWER,
+    ],
     hasSubmenu: false,
     submenu: [],
   },

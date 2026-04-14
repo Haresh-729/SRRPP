@@ -2,6 +2,8 @@
 const AppError = require('../../utils/AppError');
 const { getPagination, getPaginationMeta } = require('../../utils/pagination');
 const { deleteFile, getFileUrl } = require('../../utils/fileHelper');
+const emailService = require('../notifications/email.service');
+const logger = require('../../config/logger');
 
 // ── Internal: resolve ledger status after payment ─────────────────────────────
 
@@ -16,26 +18,26 @@ const resolveLedgerStatus = (totalDue, paidAmount) => {
 // ── Internal: carry balance forward to next ledger ────────────────────────────
 
 const carryBalanceForward = async (tx, agreementId, currentLedgerMonth, balanceCarried) => {
-  // Find next month in ledger sequence for this agreement
   const allLedgers = await tx.rent_ledgers.findMany({
     where: { agreement_id: agreementId },
     orderBy: { ledger_month: 'asc' },
-    select: { id: true, ledger_month: true, rent_amount: true, status: true },
+    select: { id: true, ledger_month: true, rent_amount: true, gst_amount: true, status: true },
   });
 
   const currentIndex = allLedgers.findIndex((l) => l.ledger_month === currentLedgerMonth);
   const nextLedger = allLedgers[currentIndex + 1];
+  if (!nextLedger) return;
 
-  if (!nextLedger) return; // Last month of agreement, no next ledger
-
-  const newTotalDue = parseFloat(nextLedger.rent_amount) + parseFloat(balanceCarried);
+  const newTotalDue =
+    parseFloat(nextLedger.rent_amount) +
+    parseFloat(nextLedger.gst_amount) +
+    parseFloat(balanceCarried);
 
   await tx.rent_ledgers.update({
     where: { id: nextLedger.id },
     data: {
       balance_from_previous: parseFloat(balanceCarried),
       total_due: newTotalDue,
-      // If next ledger was already PAID/PARTIAL, recalculate with new total
       updated_at: new Date(),
     },
   });
@@ -124,12 +126,7 @@ const recordPayment = async (ledgerId, data, file) => {
 
     // 3. If balance exists, carry it to next month's ledger
     if (newBalanceCarried > 0) {
-      await carryBalanceForward(
-        tx,
-        ledger.agreement_id,
-        ledger.ledger_month,
-        newBalanceCarried
-      );
+      await carryBalanceForward(tx, ledger.agreement_id, ledger.ledger_month, newBalanceCarried);
     } else {
       // Balance fully cleared — ensure next month reflects 0 carry
       await carryBalanceForward(tx, ledger.agreement_id, ledger.ledger_month, 0);
@@ -139,7 +136,32 @@ const recordPayment = async (ledgerId, data, file) => {
   });
 
   // Return updated ledger + payment
-  return getPaymentById(result.id);
+  const paymentDetails = await getPaymentById(result.id);
+
+  if (paymentDetails?.tenants?.email) {
+    try {
+      await emailService.sendPaymentReceiptEmail({
+        to: paymentDetails.tenants.email,
+        tenantName: paymentDetails.tenants.full_name,
+        propertyName: paymentDetails.properties?.name || 'Property',
+        receiptNumber: paymentDetails.id,
+        ledgerMonth: paymentDetails.rent_ledgers?.ledger_month,
+        amount: paymentDetails.amount,
+        paymentMode: paymentDetails.payment_mode,
+        receivedOn: paymentDetails.received_on,
+        isAdvance: paymentDetails.is_advance,
+        advanceForMonth: paymentDetails.advance_for_month,
+        upiTransactionId: paymentDetails.upi_transaction_id,
+        chequeNumber: paymentDetails.cheque_number,
+        bankName: paymentDetails.bank_name,
+        outstanding: paymentDetails.rent_ledgers?.balance_carried || 0,
+      });
+    } catch (error) {
+      logger.error(`Payment receipt email failed for payment ${paymentDetails.id}: ${error.message}`);
+    }
+  }
+
+  return paymentDetails;
 };
 
 // ── Record Advance Payment ────────────────────────────────────────────────────
@@ -172,18 +194,12 @@ const recordAdvancePayment = async (agreementId, data, file) => {
 
   if (!targetLedger) {
     if (file) deleteFile(file.path);
-    throw new AppError(
-      `No ledger found for month ${data.advanceForMonth} in this agreement.`,
-      404
-    );
+    throw new AppError(`No ledger found for month ${data.advanceForMonth} in this agreement.`, 404);
   }
 
   if (targetLedger.status === 'PAID') {
     if (file) deleteFile(file.path);
-    throw new AppError(
-      `Rent for ${data.advanceForMonth} is already fully paid.`,
-      400
-    );
+    throw new AppError(`Rent for ${data.advanceForMonth} is already fully paid.`, 400);
   }
 
   const incomingAmount = parseFloat(data.amount);
@@ -221,12 +237,7 @@ const recordAdvancePayment = async (agreementId, data, file) => {
 
     // 3. Carry balance forward if partial
     if (newBalanceCarried > 0) {
-      await carryBalanceForward(
-        tx,
-        agreementId,
-        targetLedger.ledger_month,
-        newBalanceCarried
-      );
+      await carryBalanceForward(tx, agreementId, targetLedger.ledger_month, newBalanceCarried);
     } else {
       await carryBalanceForward(tx, agreementId, targetLedger.ledger_month, 0);
     }
@@ -234,7 +245,32 @@ const recordAdvancePayment = async (agreementId, data, file) => {
     return payment;
   });
 
-  return getPaymentById(result.id);
+  const paymentDetails = await getPaymentById(result.id);
+
+  if (paymentDetails?.tenants?.email) {
+    try {
+      await emailService.sendPaymentReceiptEmail({
+        to: paymentDetails.tenants.email,
+        tenantName: paymentDetails.tenants.full_name,
+        propertyName: paymentDetails.properties?.name || 'Property',
+        receiptNumber: paymentDetails.id,
+        ledgerMonth: paymentDetails.rent_ledgers?.ledger_month,
+        amount: paymentDetails.amount,
+        paymentMode: paymentDetails.payment_mode,
+        receivedOn: paymentDetails.received_on,
+        isAdvance: paymentDetails.is_advance,
+        advanceForMonth: paymentDetails.advance_for_month,
+        upiTransactionId: paymentDetails.upi_transaction_id,
+        chequeNumber: paymentDetails.cheque_number,
+        bankName: paymentDetails.bank_name,
+        outstanding: paymentDetails.rent_ledgers?.balance_carried || 0,
+      });
+    } catch (error) {
+      logger.error(`Payment receipt email failed for advance payment ${paymentDetails.id}: ${error.message}`);
+    }
+  }
+
+  return paymentDetails;
 };
 
 // ── Get Payment By ID ─────────────────────────────────────────────────────────
@@ -261,6 +297,7 @@ const getPaymentById = async (id) => {
           monthly_rent: true,
           start_date: true,
           end_date: true,
+          gst_is_inclusive: true,
         },
       },
       properties: {
@@ -361,7 +398,14 @@ const getPaymentsByLedger = async (ledgerId) => {
         },
       },
       agreement_rent_cycles: {
-        select: { cycle_number: true, monthly_rent: true },
+        select: {
+          cycle_number: true,
+          monthly_rent: true,
+          gst_applicable: true,
+          gst_percent: true,
+          gst_billing_type: true,
+          gst_alternate_starts_on: true,
+        },
       },
     },
   });
@@ -423,6 +467,11 @@ const getAllLedgers = async (query, user) => {
             monthly_rent: true,
             rent_due_day: true,
             status: true,
+            gst_applicable: true,
+            gst_percent: true,
+            gst_billing_type: true,
+            gst_alternate_starts_on: true,
+            gst_is_inclusive: true,
           },
         },
         _count: { select: { payments: true } },
@@ -448,6 +497,11 @@ const getLedgerById = async (id) => {
           start_date: true,
           end_date: true,
           status: true,
+          gst_applicable: true,
+          gst_percent: true,
+          gst_billing_type: true,
+          gst_alternate_starts_on: true,
+          gst_is_inclusive: true,
         },
       },
       properties: {
@@ -457,7 +511,16 @@ const getLedgerById = async (id) => {
         select: { id: true, full_name: true, email: true, whats_app_no: true },
       },
       agreement_rent_cycles: {
-        select: { cycle_number: true, monthly_rent: true, start_date: true, end_date: true },
+        select: {
+          cycle_number: true,
+          monthly_rent: true,
+          start_date: true,
+          end_date: true,
+          gst_applicable: true,
+          gst_percent: true,
+          gst_billing_type: true,
+          gst_alternate_starts_on: true,
+        },
       },
       payments: {
         orderBy: { received_on: 'asc' },

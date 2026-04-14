@@ -13,6 +13,15 @@ const fmt      = (iso) => iso ? new Date(iso).toLocaleDateString('en-IN', { day:
 const fmtDT    = (iso) => iso ? new Date(iso).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
 const fmtMoney = (n)   => n   != null ? `₹${Number(n).toLocaleString('en-IN')}` : '—';
 const fmtMonth = (str) => { if (!str) return '—'; const [y, m] = str.split('-'); return new Date(y, m - 1).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }); };
+const formatGstBillingType = (value) => {
+  if (value === 'EVERY_MONTH') return 'Every Month';
+  if (value === 'ALTERNATE_MONTH') return 'Alternate Month';
+  return '—';
+};
+
+const formatGstAlternateStart = (value) => {
+  return String(value) === '2' ? 'Month 2 (2, 4, 6...)' : 'Month 1 (1, 3, 5...)';
+};
 
 const StatusBadge = ({ status }) => {
   const map = { ACTIVE: { bg: 'rgba(30,140,74,0.1)', c: 'var(--success)' }, EXPIRED: { bg: 'rgba(232,160,32,0.12)', c: 'var(--warning)' }, TERMINATED: { bg: 'rgba(217,48,37,0.1)', c: 'var(--danger)' } };
@@ -85,6 +94,11 @@ const AgreementDetailDrawer = ({ isOpen, agreementId, onClose, onSuccess }) => {
   const bp    = agreement?.brokerage_payments || agreement?.brokeragePayment;
   const cycles = agreement?.agreement_rent_cycles || [];
   const pdfUrl = agreement?.agreement_pdf;
+  const gstApplicable = agreement?.gst_applicable ?? agreement?.gstApplicable;
+  const gstPercent = agreement?.gst_percent ?? agreement?.gstPercent;
+  const gstBillingType = agreement?.gst_billing_type ?? agreement?.gstBillingType;
+  const gstAlternateStartsOn = agreement?.gst_alternate_starts_on ?? agreement?.gstAlternateStartsOn;
+  const gstIsInclusive = agreement?.gst_is_inclusive ?? agreement?.gstIsInclusive;
 
   const TABS = [
     { key: 'overview',   label: 'Overview'   },
@@ -185,6 +199,17 @@ const AgreementDetailDrawer = ({ isOpen, agreementId, onClose, onSuccess }) => {
                     <InfoRow label="Rent Escalation" value={agreement.rent_escalation_percent && Number(agreement.rent_escalation_percent) > 0 ? `${Number(agreement.rent_escalation_percent)}%` : 'None'} />
                     <InfoRow label="Rent Due Day"    value={`${agreement.rent_due_day}th of every month`} />
                     <InfoRow label="Deposit Amount"  value={fmtMoney(agreement.deposit_amount)} />
+                    <InfoRow label="GST Applicable"  value={gstApplicable ? 'Yes' : 'No'} />
+                    {gstApplicable && (
+                      <>
+                        <InfoRow label="GST Percent" value={gstPercent != null ? `${Number(gstPercent).toFixed(2)}%` : '—'} />
+                        <InfoRow label="GST Billing" value={formatGstBillingType(gstBillingType)} />
+                        <InfoRow label="GST Mode" value={gstIsInclusive ? 'Inclusive' : 'Exclusive'} />
+                        {gstBillingType === 'ALTERNATE_MONTH' && (
+                          <InfoRow label="GST Starts On" value={formatGstAlternateStart(gstAlternateStartsOn)} />
+                        )}
+                      </>
+                    )}
                   </div>
                   {/* PDF */}
                   <div className="rounded-xl border p-4" style={{ borderColor: 'var(--surface-border)', backgroundColor: 'var(--surface-bg)' }}>
@@ -334,6 +359,7 @@ const AgreementDetailDrawer = ({ isOpen, agreementId, onClose, onSuccess }) => {
               {tab === 'ledgers' && (
                 <div className="space-y-3">
                   {/* Summary bar */}
+                  <p className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>Total due includes GST and carry forward where applicable.</p>
                   {ledgersLoaded && (
                     <div className="flex flex-wrap gap-2 mb-3">
                       {[['Total', ledgerSummary.total, 'var(--text-muted)'], ['Paid', ledgerSummary.paid, 'var(--success)'], ['Partial', ledgerSummary.partial, 'var(--warning)'], ['Pending', ledgerSummary.pending, 'var(--text-muted)'], ['Overdue', ledgerSummary.overdue, 'var(--danger)']].map(([l, v, c]) => (
@@ -356,7 +382,7 @@ const AgreementDetailDrawer = ({ isOpen, agreementId, onClose, onSuccess }) => {
                       <table className="w-full text-xs">
                         <thead>
                           <tr style={{ borderBottom: '1px solid var(--surface-border)', backgroundColor: 'var(--surface-bg)' }}>
-                            {['', 'Month', 'Cycle', 'Rent', 'Carry Fwd', 'Total Due', 'Paid', 'Balance', 'Due Date', 'Status'].map(h => (
+                            {['', 'Month', 'Cycle', 'Rent', 'GST', 'Carry Fwd', 'Total Due', 'Paid', 'Balance', 'Due Date', 'Status'].map(h => (
                               <th key={h} className="px-3 py-3 text-left font-semibold" style={{ color: 'var(--text-muted)' }}>{h}</th>
                             ))}
                           </tr>
@@ -376,10 +402,16 @@ const AgreementDetailDrawer = ({ isOpen, agreementId, onClose, onSuccess }) => {
                                 <td className="px-3 py-3 whitespace-nowrap font-medium" style={{ color: 'var(--text-main)' }}>{fmtMonth(l.ledger_month)}</td>
                                 <td className="px-3 py-3" style={{ color: 'var(--text-muted)' }}>{l.agreement_rent_cycles?.cycle_number || '—'}</td>
                                 <td className="px-3 py-3" style={{ color: 'var(--text-main)' }}>{fmtMoney(l.rent_amount)}</td>
+                                <td className="px-3 py-3" style={{ color: l.gst_applicable_this_month ? 'var(--warning)' : 'var(--text-muted)' }}>
+                                  {l.gst_applicable_this_month ? fmtMoney(l.gst_amount) : '—'}
+                                </td>
                                 <td className="px-3 py-3" style={{ color: Number(l.balance_from_previous) > 0 ? 'var(--danger)' : 'var(--text-muted)' }}>
                                   {Number(l.balance_from_previous) > 0 ? fmtMoney(l.balance_from_previous) : '—'}
                                 </td>
-                                <td className="px-3 py-3 font-bold" style={{ color: 'var(--text-main)' }}>{fmtMoney(l.total_due)}</td>
+                                <td className="px-3 py-3 font-bold" style={{ color: 'var(--text-main)' }}>
+                                  <div>{fmtMoney(l.total_due)}</div>
+                                  <div className="text-[10px] font-medium mt-0.5" style={{ color: 'var(--text-muted)' }}>Includes GST</div>
+                                </td>
                                 <td className="px-3 py-3" style={{ color: 'var(--success)' }}>{fmtMoney(l.paid_amount)}</td>
                                 <td className="px-3 py-3" style={{ color: Number(l.balance_carried) > 0 ? 'var(--danger)' : 'var(--text-muted)' }}>
                                   {Number(l.balance_carried) > 0 ? fmtMoney(l.balance_carried) : '—'}
@@ -389,7 +421,7 @@ const AgreementDetailDrawer = ({ isOpen, agreementId, onClose, onSuccess }) => {
                               </tr>
                               {expandedLedger === l.id && (
                                 <tr key={`${l.id}-exp`} style={{ borderBottom: '1px solid var(--surface-border)', backgroundColor: 'var(--surface-bg)' }}>
-                                  <td colSpan={10} className="px-6 py-3">
+                                  <td colSpan={11} className="px-6 py-3">
                                     {!l.payments?.length ? (
                                       <p className="text-xs" style={{ color: 'var(--text-muted)' }}>No payments recorded for this month</p>
                                     ) : (

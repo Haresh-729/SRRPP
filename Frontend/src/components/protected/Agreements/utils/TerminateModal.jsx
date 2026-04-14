@@ -16,7 +16,6 @@ const TerminateModal = ({ isOpen, agreementId, onClose, onSuccess }) => {
     if (!reason.trim()) { setError('Reason is required.'); return; }
     if (reason.trim().length < 5) { setError('Min 5 characters.'); return; }
     setSubmitting(true);
-    // repo sends { terminationDate: reason } — backend expects terminationReason
     const result = await dispatch(terminateAgreement(agreementId, reason.trim()));
     setSubmitting(false);
     if (result) { onSuccess(); onClose(); }

@@ -36,6 +36,7 @@ const AgreementCreateModal = ({ isOpen, onClose, onSuccess }) => {
   const [form, setForm] = useState({
     propertyId: '', tenantId: '', durationMonths: '', startDate: '',
     monthlyRent: '', rentEscalationPercent: '', rentDueDay: '', depositAmount: '',
+    gstApplicable: false, gstPercent: '', gstBillingType: 'EVERY_MONTH', gstAlternateStartsOn: '1', gstInclusive: false,
     depositReceivedOn: '', depositPaymentMode: 'CASH',
     depositChequeNumber: '', depositChequeDate: '', depositBankName: '', depositRemarks: '',
     brokerId: '', brokerageType: 'PERCENTAGE', brokerageValue: '', brokerageIsPaid: false,
@@ -48,7 +49,7 @@ const AgreementCreateModal = ({ isOpen, onClose, onSuccess }) => {
 
   useEffect(() => {
     if (!isOpen) return;
-    setForm({ propertyId: '', tenantId: '', durationMonths: '', startDate: '', monthlyRent: '', rentEscalationPercent: '', rentDueDay: '', depositAmount: '', depositReceivedOn: '', depositPaymentMode: 'CASH', depositChequeNumber: '', depositChequeDate: '', depositBankName: '', depositRemarks: '', brokerId: '', brokerageType: 'PERCENTAGE', brokerageValue: '', brokerageIsPaid: false, brokeragePaidOn: '', brokeragePaymentMode: 'CASH', brokerageChequeNumber: '', brokerageChequeDate: '', brokerageBankName: '', brokerageRemarks: '' });
+    setForm({ propertyId: '', tenantId: '', durationMonths: '', startDate: '', monthlyRent: '', rentEscalationPercent: '', rentDueDay: '', depositAmount: '', gstApplicable: false, gstPercent: '', gstBillingType: 'EVERY_MONTH', gstAlternateStartsOn: '1', gstInclusive: false, depositReceivedOn: '', depositPaymentMode: 'CASH', depositChequeNumber: '', depositChequeDate: '', depositBankName: '', depositRemarks: '', brokerId: '', brokerageType: 'PERCENTAGE', brokerageValue: '', brokerageIsPaid: false, brokeragePaidOn: '', brokeragePaymentMode: 'CASH', brokerageChequeNumber: '', brokerageChequeDate: '', brokerageBankName: '', brokerageRemarks: '' });
     setPdfFile(null); setDChequePhoto(null); setBChequePhoto(null);
     setErrors({}); setShowDeposit(false); setShowBroker(false);
     dispatch(getPropertySummary()).then(r => { if (r) setProperties(Array.isArray(r) ? r.filter(p => p.status === 'VACANT' && (p.is_active ?? p.isActive)) : []); });
@@ -67,6 +68,14 @@ const AgreementCreateModal = ({ isOpen, onClose, onSuccess }) => {
     if (!form.monthlyRent || Number(form.monthlyRent) <= 0) e.monthlyRent = 'Enter valid rent.';
     if (!form.rentDueDay || Number(form.rentDueDay) < 1 || Number(form.rentDueDay) > 28) e.rentDueDay = '1–28 only.';
     if (!form.depositAmount || Number(form.depositAmount) <= 0) e.depositAmount = 'Enter valid deposit.';
+    if (form.gstApplicable) {
+      if (!form.gstPercent || Number(form.gstPercent) <= 0) e.gstPercent = 'Enter valid GST percent.';
+      else if (Number(form.gstPercent) > 100) e.gstPercent = 'Max 100%.';
+      if (!form.gstBillingType) e.gstBillingType = 'Select GST billing type.';
+      if (form.gstBillingType === 'ALTERNATE_MONTH' && !['1', '2'].includes(String(form.gstAlternateStartsOn))) {
+        e.gstAlternateStartsOn = 'Select a starting month.';
+      }
+    }
     if (showDeposit && form.depositReceivedOn) {
       if (form.depositPaymentMode === 'CHEQUE') {
         if (!form.depositChequeNumber.trim()) e.depositChequeNumber = 'Required.';
@@ -91,7 +100,14 @@ const AgreementCreateModal = ({ isOpen, onClose, onSuccess }) => {
     fd.append('monthlyRent',   form.monthlyRent);
     fd.append('rentDueDay',    form.rentDueDay);
     fd.append('depositAmount', form.depositAmount);
+    fd.append('gstApplicable', String(form.gstApplicable));
     if (form.rentEscalationPercent) fd.append('rentEscalationPercent', form.rentEscalationPercent);
+    if (form.gstApplicable) {
+      fd.append('gstPercent', form.gstPercent);
+      fd.append('gstBillingType', form.gstBillingType);
+      fd.append('gstInclusive', String(form.gstInclusive));
+      if (form.gstBillingType === 'ALTERNATE_MONTH') fd.append('gstAlternateStartsOn', form.gstAlternateStartsOn);
+    }
     if (pdfFile) fd.append('agreementPdf', pdfFile);
     if (showDeposit && form.depositReceivedOn) {
       fd.append('depositReceivedOn',  form.depositReceivedOn);
@@ -140,6 +156,7 @@ const AgreementCreateModal = ({ isOpen, onClose, onSuccess }) => {
   const cycles = dur ? cycleCount(dur) : 0;
   const rentNum = Number(form.monthlyRent);
   const escPct  = Number(form.rentEscalationPercent);
+  const gstPct  = Number(form.gstPercent);
   const inp = (f) => ({
     className: 'w-full px-3 py-2.5 rounded-lg border text-sm outline-none',
     style: { borderColor: errors[f] ? 'var(--danger)' : 'var(--surface-border)', backgroundColor: 'var(--surface-bg)', color: 'var(--text-main)' },
@@ -261,6 +278,83 @@ const AgreementCreateModal = ({ isOpen, onClose, onSuccess }) => {
                     )}
                   </div>
                 )}
+                {/* GST */}
+                <div className="rounded-xl border p-4 space-y-4" style={{ borderColor: 'var(--surface-border)', backgroundColor: 'var(--surface-bg)' }}>
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-medium" style={{ color: 'var(--text-main)' }}>GST Billing</p>
+                      <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Applies GST to rent and ledger dues when enabled.</p>
+                    </div>
+                    <button type="button" onClick={() => set('gstApplicable', !form.gstApplicable)}
+                      className="relative w-11 h-6 rounded-full transition-colors shrink-0"
+                      style={{ backgroundColor: form.gstApplicable ? 'var(--brand-primary)' : 'var(--surface-border)' }}>
+                      <span className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform"
+                        style={{ transform: form.gstApplicable ? 'translateX(-2px)' : 'translateX(-20px)' }} />
+                    </button>
+                  </div>
+
+                  {form.gstApplicable ? (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-main)' }}>GST Percent (%) <span style={{ color: 'var(--danger)' }}>*</span></label>
+                        <input type="number" value={form.gstPercent} onChange={e => set('gstPercent', e.target.value)} min="0" max="100" step="0.01" placeholder="e.g. 18" {...inp('gstPercent')} />
+                        {form.gstPercent && !errors.gstPercent && gstPct > 0 && (
+                          <p className="text-xs mt-1" style={{ color: 'var(--brand-primary)' }}>GST amount will be calculated on monthly rent.</p>
+                        )}
+                        {errors.gstPercent && <p className="text-xs mt-1" style={{ color: 'var(--danger)' }}>{errors.gstPercent}</p>}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-main)' }}>Billing Type <span style={{ color: 'var(--danger)' }}>*</span></label>
+                        <select value={form.gstBillingType} onChange={e => set('gstBillingType', e.target.value)} {...inp('gstBillingType')}>
+                          <option value="EVERY_MONTH">Every Month</option>
+                          <option value="ALTERNATE_MONTH">Alternate Month</option>
+                        </select>
+                        {errors.gstBillingType && <p className="text-xs mt-1" style={{ color: 'var(--danger)' }}>{errors.gstBillingType}</p>}
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-main)' }}>GST Pricing Mode</label>
+                        <div className="flex gap-3 flex-wrap">
+                          {[
+                            { value: true, label: 'Inclusive (GST within rent)' },
+                            { value: false, label: 'Exclusive (GST on top of rent)' },
+                          ].map(opt => (
+                            <button key={String(opt.value)} type="button" onClick={() => set('gstInclusive', opt.value)}
+                              className="px-4 py-2 rounded-lg text-sm font-medium border transition-colors"
+                              style={{
+                                borderColor: form.gstInclusive === opt.value ? 'var(--brand-primary)' : 'var(--surface-border)',
+                                backgroundColor: form.gstInclusive === opt.value ? 'rgba(26,107,60,0.1)' : 'var(--surface-card)',
+                                color: form.gstInclusive === opt.value ? 'var(--brand-primary)' : 'var(--text-muted)',
+                              }}>
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      {form.gstBillingType === 'ALTERNATE_MONTH' && (
+                        <div className="col-span-2">
+                          <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-main)' }}>Alternate Starts On <span style={{ color: 'var(--danger)' }}>*</span></label>
+                          <div className="flex gap-3">
+                            {[
+                              { value: '1', label: 'Month 1 (1, 3, 5...)' },
+                              { value: '2', label: 'Month 2 (2, 4, 6...)' },
+                            ].map(opt => (
+                              <button key={opt.value} type="button" onClick={() => set('gstAlternateStartsOn', opt.value)}
+                                className="px-4 py-2 rounded-lg text-sm font-medium border transition-colors"
+                                style={{
+                                  borderColor: form.gstAlternateStartsOn === opt.value ? 'var(--brand-primary)' : 'var(--surface-border)',
+                                  backgroundColor: form.gstAlternateStartsOn === opt.value ? 'rgba(26,107,60,0.1)' : 'var(--surface-card)',
+                                  color: form.gstAlternateStartsOn === opt.value ? 'var(--brand-primary)' : 'var(--text-muted)',
+                                }}>
+                                {opt.label}
+                              </button>
+                            ))}
+                          </div>
+                          {errors.gstAlternateStartsOn && <p className="text-xs mt-1" style={{ color: 'var(--danger)' }}>{errors.gstAlternateStartsOn}</p>}
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
                 {/* PDF */}
                 <div>
                   <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-main)' }}>Agreement PDF (optional)</label>

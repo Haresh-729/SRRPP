@@ -50,10 +50,10 @@ const PaymentDetailDrawer = ({ isOpen, paymentId, onClose }) => {
   return (
     <>
       <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose} />
-      <div className="fixed right-0 top-0 bottom-0 z-50 w-full sm:w-[480px] flex flex-col shadow-2xl"
+      <div className="fixed right-0 top-0 bottom-0 z-50 w-full sm:w-120 flex flex-col shadow-2xl"
         style={{ backgroundColor: 'var(--surface-card)', borderLeft: '1px solid var(--surface-border)' }}>
 
-        <div className="flex items-center justify-between px-5 py-4 border-b flex-shrink-0"
+        <div className="flex items-center justify-between px-5 py-4 border-b shrink-0"
           style={{ borderColor: 'var(--surface-border)' }}>
           <div className="flex items-center gap-2">
             <IconReceipt size={18} style={{ color: 'var(--brand-primary)' }} />
@@ -140,7 +140,8 @@ const PaymentDetailDrawer = ({ isOpen, paymentId, onClose }) => {
                   <Row label="Month"           value={fmtMonth(ledger.ledger_month)} />
                   <Row label="Due Date"        value={fmt(ledger.due_date)} />
                   <Row label="Rent Amount"     value={fmtMoney(ledger.rent_amount)} />
-                  <Row label="Total Due"       value={fmtMoney(ledger.total_due)} />
+                  {ledger.gst_applicable_this_month && <Row label="GST Amount" value={fmtMoney(ledger.gst_amount)} />}
+                  <Row label="Total Due"       value={<span><span>{fmtMoney(ledger.total_due)}</span><span className="block text-[10px] font-medium" style={{ color: 'var(--text-muted)' }}>Includes GST</span></span>} />
                   <div className="flex justify-between gap-4 py-1.5 border-b" style={{ borderColor: 'var(--surface-border)' }}>
                     <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Paid Amount</span>
                     <span className="text-xs font-medium" style={{ color: 'var(--success)' }}>{fmtMoney(ledger.paid_amount)}</span>
@@ -170,7 +171,7 @@ const PaymentDetailDrawer = ({ isOpen, paymentId, onClose }) => {
 
         {/* Footer */}
         {payment && (
-          <div className="px-5 py-3 border-t flex-shrink-0" style={{ borderColor: 'var(--surface-border)' }}>
+          <div className="px-5 py-3 border-t shrink-0" style={{ borderColor: 'var(--surface-border)' }}>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
               Recorded on: {fmtDT(payment.created_at)}
             </p>

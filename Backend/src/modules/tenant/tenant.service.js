@@ -2,6 +2,8 @@
 const AppError = require('../../utils/AppError');
 const { getPagination, getPaginationMeta } = require('../../utils/pagination');
 const { deleteFile, getFileUrl } = require('../../utils/fileHelper');
+const emailService = require('../notifications/email.service');
+const logger = require('../../config/logger');
 
 // ────────────────────────────────────────────────────────────────────────────
 // ── Utilities
@@ -103,6 +105,20 @@ const createTenant = async (data, files) => {
       permanent_address: data.permanentAddress,
     },
   });
+
+  if (tenant.email) {
+    try {
+      await emailService.sendTenantWelcomeEmail({
+        to: tenant.email,
+        tenantName: tenant.full_name,
+        whatsAppNo: tenant.whats_app_no,
+        permanentAddress: tenant.permanent_address,
+        dob: tenant.dob,
+      });
+    } catch (error) {
+      logger.error(`Tenant welcome email failed for tenant ${tenant.id}: ${error.message}`);
+    }
+  }
 
   return mapTenant(tenant);
 };

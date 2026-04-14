@@ -371,10 +371,11 @@ const LedgersTab = ({ properties, tenants, agreements, isAdmin }) => {
           </div>
         ) : (
           <div className="overflow-x-auto">
+            <p className="px-5 pb-3 text-xs" style={{ color: 'var(--text-muted)' }}>Total due includes GST and carry forward where applicable.</p>
             <table className="w-full text-sm">
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--surface-border)' }}>
-                  {['#', 'Property', 'Tenant', 'Month', 'Rent Amt', 'Carry Fwd', 'Total Due', 'Paid', 'Balance', 'Due Date', 'Payments', 'Status', 'Actions'].map(h => (
+                  {['#', 'Property', 'Tenant', 'Month', 'Rent Amt', 'GST', 'Carry Fwd', 'Total Due', 'Paid', 'Balance', 'Due Date', 'Payments', 'Status', 'Actions'].map(h => (
                     <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{h}</th>
                   ))}
                 </tr>
@@ -382,6 +383,7 @@ const LedgersTab = ({ properties, tenants, agreements, isAdmin }) => {
               <tbody>
                 {data.map((row, idx) => {
                   const carry   = Number(row.balance_from_previous);
+                  const gst     = row.gst_applicable_this_month ? Number(row.gst_amount || 0) : null;
                   const balance = getOutstanding(row);
                   const isOverdue = row.due_date && row.due_date < today && row.status !== 'PAID';
                   const canRecord = row.agreements?.status === 'ACTIVE' && !['PAID'].includes(row.status) && ['PENDING', 'PARTIAL', 'OVERDUE'].includes(row.status);
@@ -395,10 +397,16 @@ const LedgersTab = ({ properties, tenants, agreements, isAdmin }) => {
                       <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{row.tenants?.full_name || '—'}</td>
                       <td className="px-4 py-3 text-xs whitespace-nowrap font-medium" style={{ color: 'var(--text-main)' }}>{fmtMonth(row.ledger_month)}</td>
                       <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: 'var(--text-main)' }}>{fmtMoney(row.rent_amount)}</td>
+                      <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: gst != null ? 'var(--warning)' : 'var(--text-muted)' }}>
+                        {gst != null ? fmtMoney(gst) : '—'}
+                      </td>
                       <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: carry > 0 ? 'var(--warning)' : 'var(--text-muted)' }}>
                         {carry > 0 ? fmtMoney(carry) : '—'}
                       </td>
-                      <td className="px-4 py-3 text-xs font-bold whitespace-nowrap" style={{ color: 'var(--text-main)' }}>{fmtMoney(row.total_due)}</td>
+                      <td className="px-4 py-3 text-xs font-bold whitespace-nowrap" style={{ color: 'var(--text-main)' }}>
+                        <div>{fmtMoney(row.total_due)}</div>
+                        <div className="text-[10px] font-medium mt-0.5" style={{ color: 'var(--text-muted)' }}>incl. GST</div>
+                      </td>
                       <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: 'var(--success)' }}>{fmtMoney(row.paid_amount)}</td>
                       <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: balance > 0 ? 'var(--danger)' : 'var(--text-muted)' }}>
                         {balance > 0 ? fmtMoney(balance) : '—'}

@@ -241,6 +241,12 @@ const RecordPaymentTab = ({ properties, agreements: allAgreements, onRecordRegul
                       <span style={{ color: 'var(--text-muted)' }}>Total Due: </span>
                       <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>₹{Number(ledgerData.total_due || 0).toLocaleString('en-IN')}</span>
                     </div>
+                    {ledgerData.gst_applicable_this_month && (
+                      <div className="text-xs">
+                        <span style={{ color: 'var(--text-muted)' }}>GST Amount: </span>
+                        <span style={{ color: 'var(--warning)', fontWeight: 600 }}>₹{Number(ledgerData.gst_amount || 0).toLocaleString('en-IN')}</span>
+                      </div>
+                    )}
                     <div className="text-xs">
                       <span style={{ color: 'var(--text-muted)' }}>Paid: </span>
                       <span style={{ color: 'var(--success)', fontWeight: 600 }}>₹{Number(ledgerData.paid_amount || 0).toLocaleString('en-IN')}</span>

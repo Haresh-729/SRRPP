@@ -95,6 +95,9 @@ const RecordPaymentModal = ({ isOpen, ledger, onClose, onSuccess }) => {
             <span style={{ color: 'var(--text-muted)' }}>Tenant: <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>{ledger.tenants?.full_name || '—'}</span></span>
             <span style={{ color: 'var(--text-muted)' }}>Month: <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>{fmtMonth(ledger.ledger_month)}</span></span>
             <span style={{ color: 'var(--text-muted)' }}>Total Due: <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>{fmtMoney(ledger.total_due)}</span></span>
+            {ledger.gst_applicable_this_month && (
+              <span style={{ color: 'var(--text-muted)' }}>GST: <span style={{ color: 'var(--warning)', fontWeight: 600 }}>{fmtMoney(ledger.gst_amount)}</span></span>
+            )}
             <span style={{ color: 'var(--text-muted)' }}>Paid: <span style={{ color: 'var(--success)', fontWeight: 600 }}>{fmtMoney(ledger.paid_amount)}</span></span>
             <span style={{ color: 'var(--text-muted)' }}>Outstanding: <span style={{ color: outstanding > 0 ? 'var(--danger)' : 'var(--success)', fontWeight: 600 }}>{fmtMoney(outstanding)}</span></span>
           </div>

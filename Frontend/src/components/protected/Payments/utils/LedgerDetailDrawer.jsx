@@ -41,6 +41,8 @@ const LedgerDetailDrawer = ({ isOpen, ledgerId, onClose, onPaymentSuccess }) => 
   const totalDue = Number(ledger?.total_due || 0);
   const pct = totalDue > 0 ? Math.min(100, (totalCollected / totalDue) * 100) : 0;
   const balance = Number(ledger?.balance_carried || 0);
+  const gstApplicable = Boolean(ledger?.gst_applicable_this_month);
+  const gstAmount = Number(ledger?.gst_amount || 0);
   const canRecord = ag?.status === 'ACTIVE' && ledger?.status !== 'PAID';
 
   const handlePaymentSuccess = () => { fetchLedger(); onPaymentSuccess?.(); };
@@ -48,10 +50,10 @@ const LedgerDetailDrawer = ({ isOpen, ledgerId, onClose, onPaymentSuccess }) => 
   return (
     <>
       <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose} />
-      <div className="fixed right-0 top-0 bottom-0 z-50 w-full sm:w-[520px] flex flex-col shadow-2xl"
+      <div className="fixed right-0 top-0 bottom-0 z-50 w-full sm:w-130 flex flex-col shadow-2xl"
         style={{ backgroundColor: 'var(--surface-card)', borderLeft: '1px solid var(--surface-border)' }}>
 
-        <div className="flex items-center justify-between px-5 py-4 border-b flex-shrink-0"
+        <div className="flex items-center justify-between px-5 py-4 border-b shrink-0"
           style={{ borderColor: 'var(--surface-border)' }}>
           <div className="flex items-center gap-2">
             <IconBook2 size={18} style={{ color: 'var(--brand-primary)' }} />
@@ -81,9 +83,10 @@ const LedgerDetailDrawer = ({ isOpen, ledgerId, onClose, onPaymentSuccess }) => 
 
               {/* Financial summary grid */}
               <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--surface-border)' }}>
-                <div className="grid grid-cols-2 divide-x divide-y" style={{ borderColor: 'var(--surface-border)' }}>
+                <div className="grid grid-cols-2 md:grid-cols-3 divide-x divide-y" style={{ borderColor: 'var(--surface-border)' }}>
                   {[
                     { label: 'Rent Amount', value: fmtMoney(ledger.rent_amount), c: 'var(--text-main)' },
+                    ...(gstApplicable ? [{ label: 'GST Amount', value: fmtMoney(gstAmount), c: 'var(--warning)' }] : []),
                     { label: 'Carry Fwd',   value: Number(ledger.balance_from_previous) > 0 ? fmtMoney(ledger.balance_from_previous) : '₹0', c: Number(ledger.balance_from_previous) > 0 ? 'var(--warning)' : 'var(--text-muted)' },
                     { label: 'Total Due',   value: fmtMoney(ledger.total_due), c: 'var(--text-main)', bold: true },
                     { label: 'Paid',        value: fmtMoney(ledger.paid_amount), c: 'var(--success)' },
@@ -93,6 +96,11 @@ const LedgerDetailDrawer = ({ isOpen, ledgerId, onClose, onPaymentSuccess }) => 
                       <p className="text-sm font-bold" style={{ color: item.c }}>{item.value}</p>
                     </div>
                   ))}
+                </div>
+                <div className="px-4 py-2 border-t" style={{ borderColor: 'var(--surface-border)' }}>
+                  <span className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
+                    Total due = rent + GST + carry forward
+                  </span>
                 </div>
                 {balance > 0 && (
                   <div className="px-4 py-2 border-t" style={{ borderColor: 'var(--surface-border)' }}>

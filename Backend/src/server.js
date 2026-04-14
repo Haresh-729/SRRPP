@@ -3,6 +3,7 @@ const env = require('./config/env');
 const logger = require('./config/logger');
 const { connectDB } = require('./config/database');
 const { verifyMailer } = require('./config/nodemailer');
+const { startSchedulers } = require('./jobs/queue');
 
 const startServer = async () => {
   // Connect to DB
@@ -10,6 +11,9 @@ const startServer = async () => {
 
   // Verify mailer
   await verifyMailer();
+
+  // Start cron schedulers for notifications
+  startSchedulers();
 
   // Start HTTP server
   const server = app.listen(env.PORT, () => {

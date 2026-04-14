@@ -1,1 +1,1 @@
-﻿// email.worker.js
+﻿// Placeholder for future async queue worker integration.
