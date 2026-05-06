@@ -48,6 +48,8 @@ model agreements {
   gst_billing_type        GstBillingType?
   gst_alternate_starts_on Int?                    @db.SmallInt
   gst_is_inclusive        Boolean                 @default(false)
+  rent_in_hand            Decimal?                @db.Decimal(12, 2)
+  rent_bank_transfer      Decimal?                @db.Decimal(12, 2)
   agreement_rent_cycles   agreement_rent_cycles[]
   brokers                 brokers?                @relation(fields: [broker_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_agreement_broker")
   properties              properties              @relation(fields: [property_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_agreement_property")
