@@ -4,6 +4,8 @@ import { IconX, IconEdit, IconFileText, IconBan, IconChevronRight, IconChevronDo
 import { getAgreementById, getAgreementLedgers } from '../../../../services/repository/AgreementRepo.js';
 import { selectAccount } from '../../../../app/DashboardSlice.js';
 import { normalizeRole, ROLE_CODES } from '../../../../services/utils/rbac.js';
+import { resolveMediaUrl } from '../../../../services/utils/media.js';
+import ImagePreviewModal from '../../../common/ImagePreviewModal.jsx';
 import UpdatePdfModal from './UpdatePdfModal.jsx';
 import TerminateModal from './TerminateModal.jsx';
 import DepositModal from './DepositModal.jsx';
@@ -60,6 +62,8 @@ const AgreementDetailDrawer = ({ isOpen, agreementId, onClose, onSuccess }) => {
   const [terminateModal, setTerminateModal] = useState(false);
   const [depositModal,   setDepositModal]   = useState({ open: false, mode: 'CREATE' });
   const [brokerageModal, setBrokerageModal] = useState({ open: false, mode: 'CREATE' });
+  const [previewSrc, setPreviewSrc] = useState('');
+  const [previewTitle, setPreviewTitle] = useState('');
 
   const fetchAgreement = () => {
     if (!agreementId) return;
@@ -93,7 +97,7 @@ const AgreementDetailDrawer = ({ isOpen, agreementId, onClose, onSuccess }) => {
   const dp    = agreement?.deposit_payments   || agreement?.depositPayment;
   const bp    = agreement?.brokerage_payments || agreement?.brokeragePayment;
   const cycles = agreement?.agreement_rent_cycles || [];
-  const pdfUrl = agreement?.agreement_pdf;
+  const pdfUrl = resolveMediaUrl(agreement?.agreement_pdf);
   const gstApplicable = agreement?.gst_applicable ?? agreement?.gstApplicable;
   const gstPercent = agreement?.gst_percent ?? agreement?.gstPercent;
   const gstBillingType = agreement?.gst_billing_type ?? agreement?.gstBillingType;
@@ -119,11 +123,11 @@ const AgreementDetailDrawer = ({ isOpen, agreementId, onClose, onSuccess }) => {
   return (
     <>
       <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose} />
-      <div className="fixed right-0 top-0 bottom-0 z-50 w-full sm:w-[560px] flex flex-col shadow-2xl"
+      <div className="fixed right-0 top-0 bottom-0 z-50 w-full sm:w-140 flex flex-col shadow-2xl"
         style={{ backgroundColor: 'var(--surface-card)', borderLeft: '1px solid var(--surface-border)' }}>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b flex-shrink-0"
+        <div className="flex items-center justify-between px-5 py-4 border-b shrink-0"
           style={{ borderColor: 'var(--surface-border)' }}>
           <div className="flex items-center gap-3">
             {agreement && <StatusBadge status={agreement.status} />}
@@ -143,7 +147,7 @@ const AgreementDetailDrawer = ({ isOpen, agreementId, onClose, onSuccess }) => {
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b flex-shrink-0 overflow-x-auto px-5" style={{ borderColor: 'var(--surface-border)' }}>
+        <div className="flex border-b shrink-0 overflow-x-auto px-5" style={{ borderColor: 'var(--surface-border)' }}>
           {TABS.map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
               className="px-3 py-3 text-xs font-semibold border-b-2 transition-colors mr-1 whitespace-nowrap"
@@ -196,6 +200,12 @@ const AgreementDetailDrawer = ({ isOpen, agreementId, onClose, onSuccess }) => {
                     <InfoRow label="Start Date"      value={fmt(agreement.start_date)} />
                     <InfoRow label="End Date"        value={fmt(agreement.end_date)} />
                     <InfoRow label="Monthly Rent"    value={fmtMoney(agreement.monthly_rent)} />
+                     {agreement.rent_in_hand != null && (
+                      <InfoRow label="In-Hand" value={fmtMoney(agreement.rent_in_hand)} />
+                    )}
+                    {agreement.rent_bank_transfer != null && (
+                      <InfoRow label="Bank Transfer" value={fmtMoney(agreement.rent_bank_transfer)} />
+                    )}
                     <InfoRow label="Rent Escalation" value={agreement.rent_escalation_percent && Number(agreement.rent_escalation_percent) > 0 ? `${Number(agreement.rent_escalation_percent)}%` : 'None'} />
                     <InfoRow label="Rent Due Day"    value={`${agreement.rent_due_day}th of every month`} />
                     <InfoRow label="Deposit Amount"  value={fmtMoney(agreement.deposit_amount)} />
@@ -258,7 +268,11 @@ const AgreementDetailDrawer = ({ isOpen, agreementId, onClose, onSuccess }) => {
                         <InfoRow label="Cheque No"  value={dp.cheque_number || '—'} />
                         <InfoRow label="Cheque Date" value={fmt(dp.cheque_date)} />
                         <InfoRow label="Bank Name"  value={dp.bank_name || '—'} />
-                        {dp.cheque_photo && <div className="pt-2"><a href={dp.cheque_photo} target="_blank" rel="noopener noreferrer" className="text-xs hover:underline" style={{ color: 'var(--brand-primary)' }}>View Cheque Photo</a></div>}
+                        {dp.cheque_photo && <div className="pt-2">
+                          <button type="button" className="text-xs hover:underline text-left" style={{ color: 'var(--brand-primary)' }} onClick={() => { setPreviewSrc(resolveMediaUrl(dp.cheque_photo)); setPreviewTitle('Deposit Cheque Photo'); }}>
+                            View Cheque Photo
+                          </button>
+                        </div>}
                       </>)}
                       <InfoRow label="Remarks" value={dp.remarks || '—'} />
                     </div>
@@ -315,7 +329,11 @@ const AgreementDetailDrawer = ({ isOpen, agreementId, onClose, onSuccess }) => {
                           <InfoRow label="Status" value={bp.is_paid ? '✓ Paid' : 'Pending'} />
                           {bp.is_paid && <InfoRow label="Paid On" value={fmt(bp.paid_on)} />}
                           {bp.payment_mode && <InfoRow label="Payment Mode" value={bp.payment_mode} />}
-                          {bp.cheque_photo && <div className="pt-2"><a href={bp.cheque_photo} target="_blank" rel="noopener noreferrer" className="text-xs hover:underline" style={{ color: 'var(--brand-primary)' }}>View Cheque Photo</a></div>}
+                          {bp.cheque_photo && <div className="pt-2">
+                            <button type="button" className="text-xs hover:underline text-left" style={{ color: 'var(--brand-primary)' }} onClick={() => { setPreviewSrc(resolveMediaUrl(bp.cheque_photo)); setPreviewTitle('Brokerage Cheque Photo'); }}>
+                              View Cheque Photo
+                            </button>
+                          </div>}
                           {bp.remarks && <InfoRow label="Remarks" value={bp.remarks} />}
                         </div>
                       )}

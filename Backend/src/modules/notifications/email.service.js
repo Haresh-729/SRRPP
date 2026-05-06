@@ -1,4 +1,4 @@
-﻿const { transporter } = require('../../config/nodemailer');
+﻿const { sendEmail: brevoSend } = require('../../config/nodemailer');
 const env = require('../../config/env');
 const logger = require('../../config/logger');
 const { buildRentReminderTemplate } = require('./templates/rentReminder.template');
@@ -22,12 +22,10 @@ const formatDate = (iso) => {
 };
 
 const sendEmail = async ({ to, subject, html, text }) => {
-	if (!to) throw new Error('Recipient email is required.');
-
-	const from = env.MAIL_FROM || env.MAIL_USER;
-	const info = await transporter.sendMail({ from, to, subject, html, text });
-	logger.info(`Email sent: ${subject}`, { to, messageId: info.messageId });
-	return info;
+  if (!to) throw new Error('Recipient email is required.');
+  const info = await brevoSend({ to, subject, html, text });
+  logger.info(`Email sent: ${subject}`, { to });
+  return info;
 };
 
 const sendAgreementCreatedEmail = async ({

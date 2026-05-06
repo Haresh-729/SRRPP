@@ -1,7 +1,7 @@
 ﻿const { prisma } = require('../../config/database');
 const AppError = require('../../utils/AppError');
 const { getPagination, getPaginationMeta } = require('../../utils/pagination');
-const { deleteFile, getFileUrl } = require('../../utils/fileHelper');
+const { uploadToS3, deleteFromS3, buildTenantKey } = require('../../utils/s3');
 const emailService = require('../notifications/email.service');
 const logger = require('../../config/logger');
 
@@ -72,27 +72,11 @@ const mapTenant = (tenant) => {
 // ────────────────────────────────────────────────────────────────────────────
 
 const createTenant = async (data, files) => {
-  // Both documents are mandatory on creation
-  if (!files || !files.aadharPhoto || !files.aadharPhoto[0]) {
-    throw new AppError('Aadhar card photo is required.', 400);
-  }
+  if (!files?.aadharPhoto?.[0]) throw new AppError('Aadhar card photo is required.', 400);
+  if (!files?.panPhoto?.[0]) throw new AppError('PAN card photo is required.', 400);
 
-  if (!files.panPhoto || !files.panPhoto[0]) {
-    if (files.aadharPhoto && files.aadharPhoto[0]) {
-      deleteFile(files.aadharPhoto[0].path);
-    }
-    throw new AppError('PAN card photo is required.', 400);
-  }
-
-  const existing = await prisma.tenants.findUnique({
-    where: { email: data.email },
-  });
-
-  if (existing) {
-    deleteFile(files.aadharPhoto[0].path);
-    deleteFile(files.panPhoto[0].path);
-    throw new AppError('A tenant with this email already exists.', 409);
-  }
+  const existing = await prisma.tenants.findUnique({ where: { email: data.email } });
+  if (existing) throw new AppError('A tenant with this email already exists.', 409);
 
   const tenant = await prisma.tenants.create({
     data: {
@@ -100,10 +84,23 @@ const createTenant = async (data, files) => {
       email: data.email,
       whats_app_no: data.whatsAppNo,
       dob: new Date(data.dob),
-      aadhar_photo: getFileUrl(files.aadharPhoto[0].path),
-      pan_photo: getFileUrl(files.panPhoto[0].path),
       permanent_address: data.permanentAddress,
+      aadhar_photo: null,
+      pan_photo: null,
     },
+  });
+
+  const aadharFile = files.aadharPhoto[0];
+  const panFile = files.panPhoto[0];
+  const aadharKey = buildTenantKey(tenant.id, 'aadhar', aadharFile.originalname);
+  const panKey = buildTenantKey(tenant.id, 'pan', panFile.originalname);
+
+  await uploadToS3(aadharFile.buffer, aadharKey, aadharFile.mimetype);
+  await uploadToS3(panFile.buffer, panKey, panFile.mimetype);
+
+  await prisma.tenants.update({
+    where: { id: tenant.id },
+    data: { aadhar_photo: aadharKey, pan_photo: panKey },
   });
 
   if (tenant.email) {
@@ -120,7 +117,7 @@ const createTenant = async (data, files) => {
     }
   }
 
-  return mapTenant(tenant);
+  return mapTenant({ ...tenant, aadhar_photo: aadharKey, pan_photo: panKey });
 };
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -282,8 +279,6 @@ const updateTenant = async (id, data, files) => {
   const tenant = await prisma.tenants.findUnique({ where: { id } });
 
   if (!tenant) {
-    if (files?.aadharPhoto?.[0]) deleteFile(files.aadharPhoto[0].path);
-    if (files?.panPhoto?.[0]) deleteFile(files.panPhoto[0].path);
     throw new AppError('Tenant not found.', 404);
   }
 
@@ -293,8 +288,6 @@ const updateTenant = async (id, data, files) => {
       where: { email: data.email },
     });
     if (existing) {
-      if (files?.aadharPhoto?.[0]) deleteFile(files.aadharPhoto[0].path);
-      if (files?.panPhoto?.[0]) deleteFile(files.panPhoto[0].path);
       throw new AppError('A tenant with this email already exists.', 409);
     }
   }
@@ -308,16 +301,20 @@ const updateTenant = async (id, data, files) => {
     ...(data.isActive !== undefined && { is_active: data.isActive }),
   };
 
-  // Handle aadhar photo replacement
   if (files?.aadharPhoto?.[0]) {
-    if (tenant.aadhar_photo) deleteFile(tenant.aadhar_photo);
-    updateData.aadhar_photo = getFileUrl(files.aadharPhoto[0].path);
+    if (tenant.aadhar_photo) await deleteFromS3(tenant.aadhar_photo);
+    const f = files.aadharPhoto[0];
+    const key = buildTenantKey(id, 'aadhar', f.originalname);
+    await uploadToS3(f.buffer, key, f.mimetype);
+    updateData.aadhar_photo = key;
   }
 
-  // Handle pan photo replacement
   if (files?.panPhoto?.[0]) {
-    if (tenant.pan_photo) deleteFile(tenant.pan_photo);
-    updateData.pan_photo = getFileUrl(files.panPhoto[0].path);
+    if (tenant.pan_photo) await deleteFromS3(tenant.pan_photo);
+    const f = files.panPhoto[0];
+    const key = buildTenantKey(id, 'pan', f.originalname);
+    await uploadToS3(f.buffer, key, f.mimetype);
+    updateData.pan_photo = key;
   }
 
   const updated = await prisma.tenants.update({
@@ -368,7 +365,7 @@ const deleteTenantDocument = async (id, docType) => {
     );
   }
 
-  deleteFile(tenant[field]);
+  await deleteFromS3(tenant[field]);
 
   await prisma.tenants.update({
     where: { id },

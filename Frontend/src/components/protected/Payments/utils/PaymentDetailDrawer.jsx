@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { IconX, IconReceipt } from '@tabler/icons-react';
 import { getPaymentById } from '../../../../services/repository/PaymentRepo.js';
+import { resolveMediaUrl } from '../../../../services/utils/media.js';
+import ImagePreviewModal from '../../../common/ImagePreviewModal.jsx';
 
 const fmt      = (iso) => iso ? new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 const fmtDT    = (iso) => iso ? new Date(iso).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
@@ -31,6 +33,8 @@ const PaymentDetailDrawer = ({ isOpen, paymentId, onClose }) => {
   const dispatch = useDispatch();
   const [payment, setPayment] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [previewSrc, setPreviewSrc] = useState('');
+  const [previewTitle, setPreviewTitle] = useState('');
 
   useEffect(() => {
     if (!isOpen || !paymentId) return;
@@ -116,10 +120,17 @@ const PaymentDetailDrawer = ({ isOpen, paymentId, onClose }) => {
                   <Row label="Bank Name"   value={payment.bank_name || '—'} />
                   {payment.cheque_photo ? (
                     <div className="pt-2">
-                      <a href={payment.cheque_photo} target="_blank" rel="noopener noreferrer">
-                        <img src={payment.cheque_photo} alt="Cheque" className="w-24 h-16 object-cover rounded-lg border cursor-pointer hover:opacity-80"
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPreviewSrc(resolveMediaUrl(payment.cheque_photo));
+                          setPreviewTitle('Cheque Photo');
+                        }}
+                        className="text-left"
+                      >
+                        <img src={resolveMediaUrl(payment.cheque_photo)} alt="Cheque" className="w-24 h-16 object-cover rounded-lg border cursor-pointer hover:opacity-80"
                           style={{ borderColor: 'var(--surface-border)' }} />
-                      </a>
+                      </button>
                     </div>
                   ) : (
                     <div className="pt-2"><p className="text-xs" style={{ color: 'var(--text-muted)' }}>No photo uploaded</p></div>

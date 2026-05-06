@@ -2,10 +2,12 @@ import { useState, useEffect, useRef } from 'react';
 import { useDispatch } from 'react-redux';
 import { IconX, IconLoader2, IconUpload, IconTrash, IconPhoto } from '@tabler/icons-react';
 import { createTenant, updateTenant, deleteTenantDocument, getTenantById } from '../../../../services/repository/TenantRepo.js';
+import { resolveMediaUrl } from '../../../../services/utils/media.js';
+import ImagePreviewModal from '../../../common/ImagePreviewModal.jsx';
 
 const today = new Date().toISOString().split('T')[0];
 
-const DocField = ({ label, required, existing, newFile, onPickNew, onRemoveExisting, removing }) => {
+const DocField = ({ label, required, existing, newFile, onPickNew, onRemoveExisting, removing, onPreview }) => {
   const fileRef = useRef(null);
   return (
     <div>
@@ -16,10 +18,10 @@ const DocField = ({ label, required, existing, newFile, onPickNew, onRemoveExist
       {existing && !newFile && (
         <div className="flex items-center gap-3 mb-2 p-3 rounded-xl border"
           style={{ backgroundColor: 'var(--surface-bg)', borderColor: 'var(--surface-border)' }}>
-          <a href={existing} target="_blank" rel="noopener noreferrer">
-            <img src={existing} alt={label} className="w-16 h-12 object-cover rounded-lg border hover:opacity-80"
+          <button type="button" onClick={onPreview} className="text-left">
+            <img src={resolveMediaUrl(existing)} alt={label} className="w-16 h-12 object-cover rounded-lg border hover:opacity-80"
               style={{ borderColor: 'var(--surface-border)' }} />
-          </a>
+          </button>
           <div className="flex-1 min-w-0">
             <p className="text-xs font-medium" style={{ color: 'var(--text-main)' }}>Current document</p>
             <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Click to view full size</p>
@@ -67,6 +69,8 @@ const TenantFormModal = ({ isOpen, mode, selectedId, onClose, onSuccess }) => {
   const [newPan,    setNewPan]              = useState(null);
   const [removingAadhar, setRemovingAadhar] = useState(false);
   const [removingPan,    setRemovingPan]    = useState(false);
+  const [previewSrc, setPreviewSrc] = useState('');
+  const [previewTitle, setPreviewTitle] = useState('');
 
   useEffect(() => {
     if (!isOpen) return;
@@ -171,7 +175,7 @@ const TenantFormModal = ({ isOpen, mode, selectedId, onClose, onSuccess }) => {
       <div className="relative w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[92vh]"
         style={{ backgroundColor: 'var(--surface-card)', border: '1px solid var(--surface-border)' }}>
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0"
+        <div className="flex items-center justify-between px-6 py-4 border-b shrink-0"
           style={{ borderColor: 'var(--surface-border)' }}>
           <h3 className="text-base font-semibold" style={{ color: 'var(--text-main)' }}>
             {mode === 'CREATE' ? 'Add Tenant' : 'Edit Tenant'}
@@ -249,7 +253,8 @@ const TenantFormModal = ({ isOpen, mode, selectedId, onClose, onSuccess }) => {
                     label="Aadhar Card Photo" required={mode === 'CREATE'}
                     existing={existingAadhar} newFile={newAadhar}
                     onPickNew={f => { setNewAadhar(f); setIsDirty(true); if (errors.aadhar) setErrors(p => ({...p, aadhar: undefined})); }}
-                    onRemoveExisting={handleRemoveAadhar} removing={removingAadhar} />
+                    onRemoveExisting={handleRemoveAadhar} removing={removingAadhar}
+                    onPreview={() => { setPreviewSrc(resolveMediaUrl(existingAadhar)); setPreviewTitle('Aadhar Card'); }} />
                   {errors.aadhar && <p className="text-xs mt-1" style={{ color: 'var(--danger)' }}>{errors.aadhar}</p>}
                 </div>
                 <div>
@@ -257,7 +262,8 @@ const TenantFormModal = ({ isOpen, mode, selectedId, onClose, onSuccess }) => {
                     label="PAN Card Photo" required={mode === 'CREATE'}
                     existing={existingPan} newFile={newPan}
                     onPickNew={f => { setNewPan(f); setIsDirty(true); if (errors.pan) setErrors(p => ({...p, pan: undefined})); }}
-                    onRemoveExisting={handleRemovePan} removing={removingPan} />
+                    onRemoveExisting={handleRemovePan} removing={removingPan}
+                    onPreview={() => { setPreviewSrc(resolveMediaUrl(existingPan)); setPreviewTitle('PAN Card'); }} />
                   {errors.pan && <p className="text-xs mt-1" style={{ color: 'var(--danger)' }}>{errors.pan}</p>}
                 </div>
               </div>
@@ -271,7 +277,7 @@ const TenantFormModal = ({ isOpen, mode, selectedId, onClose, onSuccess }) => {
                     <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Inactive tenants cannot be assigned to new agreements</p>
                   </div>
                   <button type="button" onClick={() => set('isActive', !form.isActive)}
-                    className="relative w-11 h-6 rounded-full transition-colors flex-shrink-0"
+                    className="relative w-11 h-6 rounded-full transition-colors shrink-0"
                     style={{ backgroundColor: form.isActive ? 'var(--brand-primary)' : 'var(--surface-border)' }}>
                     <span className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform"
                       style={{ transform: form.isActive ? 'translateX(-2px)' : 'translateX(-20px)' }} />
@@ -281,7 +287,7 @@ const TenantFormModal = ({ isOpen, mode, selectedId, onClose, onSuccess }) => {
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t flex-shrink-0"
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t shrink-0"
               style={{ borderColor: 'var(--surface-border)' }}>
               <button type="button" onClick={handleClose} disabled={submitting}
                 className="px-4 py-2 rounded-lg text-sm font-medium border disabled:opacity-50"
@@ -298,6 +304,12 @@ const TenantFormModal = ({ isOpen, mode, selectedId, onClose, onSuccess }) => {
           </form>
         )}
       </div>
+      <ImagePreviewModal
+        isOpen={Boolean(previewSrc)}
+        src={previewSrc}
+        title={previewTitle}
+        onClose={() => setPreviewSrc('')}
+      />
     </div>
   );
 };

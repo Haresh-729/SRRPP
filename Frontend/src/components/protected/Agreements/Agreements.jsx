@@ -6,6 +6,7 @@ import { getPropertySummary } from '../../../services/repository/PropertyRepo.js
 import { getTenantSummary } from '../../../services/repository/TenantRepo.js';
 import { selectAccount } from '../../../app/DashboardSlice.js';
 import { normalizeRole, ROLE_CODES } from '../../../services/utils/rbac.js';
+import { resolveMediaUrl } from '../../../services/utils/media.js';
 import AgreementTable from './utils/AgreementTable.jsx';
 import AgreementCreateModal from './utils/AgreementCreateModal.jsx';
 import AgreementDetailDrawer from './utils/AgreementDetailDrawer.jsx';
@@ -93,7 +94,7 @@ const Agreements = () => {
   const handleSuccess    = () => fetchList({ status, propertyId, tenantId, page });
 
   const handlePdf = (row) => {
-    if (row.agreement_pdf) window.open(row.agreement_pdf, '_blank');
+    if (row.agreement_pdf) window.open(resolveMediaUrl(row.agreement_pdf), '_blank', 'noopener,noreferrer');
     else setPdfModal({ open: true, id: row.id, pdf: null });
   };
 

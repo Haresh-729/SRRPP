@@ -47,6 +47,8 @@ const createAgreementSchema = Joi.object({
     'number.positive': 'Deposit amount must be a positive number.',
     'any.required': 'Deposit amount is required.',
   }),
+  rentInHand: Joi.number().min(0).optional().allow(null, ''),
+  rentBankTransfer: Joi.number().min(0).optional().allow(null, ''),
 
   // ── GST ────────────────────────────────────────────────────────────────────
   gstApplicable: Joi.boolean().optional().default(false),

@@ -4,6 +4,8 @@ import { IconX, IconEdit, IconMail, IconPhone, IconMapPin, IconUser } from '@tab
 import { getTenantById } from '../../../../services/repository/TenantRepo.js';
 import { selectAccount } from '../../../../app/DashboardSlice.js';
 import { normalizeRole, ROLE_CODES } from '../../../../services/utils/rbac.js';
+import { resolveMediaUrl } from '../../../../services/utils/media.js';
+import ImagePreviewModal from '../../../common/ImagePreviewModal.jsx';
 
 const fmt      = (iso) => iso ? new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 const fmtMoney = (n)   => n   != null ? `₹${Number(n).toLocaleString('en-IN')}` : '—';
@@ -27,17 +29,17 @@ const AgreementStatusBadge = ({ status }) => {
 
 const InfoRow = ({ label, value }) => (
   <div className="flex justify-between gap-4 py-1.5 border-b" style={{ borderColor: 'var(--surface-border)' }}>
-    <span className="text-xs flex-shrink-0" style={{ color: 'var(--text-muted)' }}>{label}</span>
+    <span className="text-xs shrink-0" style={{ color: 'var(--text-muted)' }}>{label}</span>
     <span className="text-xs font-medium text-right" style={{ color: 'var(--text-main)' }}>{value}</span>
   </div>
 );
 
-const DocThumb = ({ url, label }) => url
-  ? (<a href={url} target="_blank" rel="noopener noreferrer">
-      <img src={url} alt={label} className="w-full h-24 object-cover rounded-xl border hover:opacity-80 cursor-pointer"
+const DocThumb = ({ url, label, onPreview }) => url
+  ? (<button type="button" onClick={onPreview} className="text-left w-full">
+      <img src={resolveMediaUrl(url)} alt={label} className="w-full h-24 object-cover rounded-xl border hover:opacity-80 cursor-pointer"
         style={{ borderColor: 'var(--surface-border)' }} />
       <p className="text-xs mt-1 text-center" style={{ color: 'var(--brand-primary)' }}>View {label}</p>
-    </a>)
+    </button>)
   : (<div className="w-full h-24 rounded-xl border flex items-center justify-center"
       style={{ borderColor: 'var(--surface-border)', backgroundColor: 'var(--surface-bg)' }}>
       <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Not uploaded</p>
@@ -51,6 +53,8 @@ const TenantDetailDrawer = ({ isOpen, tenantId, onClose, onEdit }) => {
   const [tenant, setTenant] = useState(null);
   const [loading, setLoading] = useState(false);
   const [tab, setTab]         = useState('profile');
+  const [previewSrc, setPreviewSrc] = useState('');
+  const [previewTitle, setPreviewTitle] = useState('');
 
   useEffect(() => {
     if (!isOpen || !tenantId) return;
@@ -90,11 +94,11 @@ const TenantDetailDrawer = ({ isOpen, tenantId, onClose, onEdit }) => {
   return (
     <>
       <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose} />
-      <div className="fixed right-0 top-0 bottom-0 z-50 w-full sm:w-[480px] flex flex-col shadow-2xl"
+      <div className="fixed right-0 top-0 bottom-0 z-50 w-full sm:w-120 flex flex-col shadow-2xl"
         style={{ backgroundColor: 'var(--surface-card)', borderLeft: '1px solid var(--surface-border)' }}>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b flex-shrink-0"
+        <div className="flex items-center justify-between px-5 py-4 border-b shrink-0"
           style={{ borderColor: 'var(--surface-border)' }}>
           <div className="flex items-center gap-2">
             <IconUser size={18} style={{ color: 'var(--brand-primary)' }} />
@@ -116,7 +120,7 @@ const TenantDetailDrawer = ({ isOpen, tenantId, onClose, onEdit }) => {
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b flex-shrink-0 px-5 overflow-x-auto" style={{ borderColor: 'var(--surface-border)' }}>
+        <div className="flex border-b shrink-0 px-5 overflow-x-auto" style={{ borderColor: 'var(--surface-border)' }}>
           {TABS.map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
               className="px-3 py-3 text-xs font-semibold border-b-2 transition-colors mr-2 whitespace-nowrap"
@@ -151,7 +155,7 @@ const TenantDetailDrawer = ({ isOpen, tenantId, onClose, onEdit }) => {
                         Member since {fmt(createdAt)}
                       </p>
                     </div>
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold flex-shrink-0"
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold shrink-0"
                       style={isActive
                         ? { backgroundColor: 'rgba(30,140,74,0.1)', color: 'var(--success)' }
                         : { backgroundColor: 'rgba(217,48,37,0.1)', color: 'var(--danger)' }}>
@@ -182,7 +186,7 @@ const TenantDetailDrawer = ({ isOpen, tenantId, onClose, onEdit }) => {
                       </span>
                     </div>
                     <div className="flex items-start gap-3">
-                      <IconMapPin size={15} className="flex-shrink-0 mt-0.5" style={{ color: 'var(--brand-primary)' }} />
+                      <IconMapPin size={15} className="shrink-0 mt-0.5" style={{ color: 'var(--brand-primary)' }} />
                       <span className="text-sm" style={{ color: permanentAddress ? 'var(--text-main)' : 'var(--text-muted)' }}>
                         {permanentAddress || 'Not provided'}
                       </span>
@@ -213,11 +217,11 @@ const TenantDetailDrawer = ({ isOpen, tenantId, onClose, onEdit }) => {
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <p className="text-xs font-medium mb-1.5" style={{ color: 'var(--text-main)' }}>Aadhar Card</p>
-                        <DocThumb url={aadharPhoto} label="Aadhar" />
+                        <DocThumb url={aadharPhoto} label="Aadhar" onPreview={() => { setPreviewSrc(resolveMediaUrl(aadharPhoto)); setPreviewTitle('Aadhar Card'); }} />
                       </div>
                       <div>
                         <p className="text-xs font-medium mb-1.5" style={{ color: 'var(--text-main)' }}>PAN Card</p>
-                        <DocThumb url={panPhoto} label="PAN" />
+                        <DocThumb url={panPhoto} label="PAN" onPreview={() => { setPreviewSrc(resolveMediaUrl(panPhoto)); setPreviewTitle('PAN Card'); }} />
                       </div>
                     </div>
                   </div>

@@ -3,6 +3,7 @@ import { useDispatch } from 'react-redux';
 import { IconX, IconLoader2, IconUpload, IconFileText } from '@tabler/icons-react';
 import { apiConnector } from '../../../../services/Connector.js';
 import { agreementEndpoints } from '../../../../services/Apis.js';
+import { resolveMediaUrl } from '../../../../services/utils/media.js';
 
 const MAX_MB = 10;
 
@@ -60,7 +61,7 @@ const UpdatePdfModal = ({ isOpen, agreementId, existingPdf, onClose, onSuccess }
               <div className="flex items-center gap-2 p-3 rounded-lg border"
                 style={{ borderColor: 'var(--surface-border)', backgroundColor: 'var(--surface-bg)' }}>
                 <IconFileText size={16} style={{ color: 'var(--brand-primary)' }} />
-                <a href={existingPdf} target="_blank" rel="noopener noreferrer"
+                <a href={resolveMediaUrl(existingPdf)} target="_blank" rel="noopener noreferrer"
                   className="text-xs font-medium hover:underline flex-1 truncate"
                   style={{ color: 'var(--brand-primary)' }}>Current PDF — View</a>
                 <span className="text-xs px-2 py-0.5 rounded-full"

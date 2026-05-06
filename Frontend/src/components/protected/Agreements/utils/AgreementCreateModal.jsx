@@ -41,7 +41,7 @@ const AgreementCreateModal = ({ isOpen, onClose, onSuccess }) => {
     depositChequeNumber: '', depositChequeDate: '', depositBankName: '', depositRemarks: '',
     brokerId: '', brokerageType: 'PERCENTAGE', brokerageValue: '', brokerageIsPaid: false,
     brokeragePaidOn: '', brokeragePaymentMode: 'CASH',
-    brokerageChequeNumber: '', brokerageChequeDate: '', brokerageBankName: '', brokerageRemarks: '',
+    brokerageChequeNumber: '', brokerageChequeDate: '', brokerageBankName: '', brokerageRemarks: '', rentInHand: '', rentBankTransfer: '',
   });
   const [pdfFile,      setPdfFile]      = useState(null);
   const [dChequePhoto, setDChequePhoto] = useState(null);
@@ -49,7 +49,7 @@ const AgreementCreateModal = ({ isOpen, onClose, onSuccess }) => {
 
   useEffect(() => {
     if (!isOpen) return;
-    setForm({ propertyId: '', tenantId: '', durationMonths: '', startDate: '', monthlyRent: '', rentEscalationPercent: '', rentDueDay: '', depositAmount: '', gstApplicable: false, gstPercent: '', gstBillingType: 'EVERY_MONTH', gstAlternateStartsOn: '1', gstInclusive: false, depositReceivedOn: '', depositPaymentMode: 'CASH', depositChequeNumber: '', depositChequeDate: '', depositBankName: '', depositRemarks: '', brokerId: '', brokerageType: 'PERCENTAGE', brokerageValue: '', brokerageIsPaid: false, brokeragePaidOn: '', brokeragePaymentMode: 'CASH', brokerageChequeNumber: '', brokerageChequeDate: '', brokerageBankName: '', brokerageRemarks: '' });
+    setForm({ propertyId: '', tenantId: '', durationMonths: '', startDate: '', monthlyRent: '', rentEscalationPercent: '', rentDueDay: '', depositAmount: '', gstApplicable: false, gstPercent: '', gstBillingType: 'EVERY_MONTH', gstAlternateStartsOn: '1', gstInclusive: false, depositReceivedOn: '', depositPaymentMode: 'CASH', depositChequeNumber: '', depositChequeDate: '', depositBankName: '', depositRemarks: '', brokerId: '', brokerageType: 'PERCENTAGE', brokerageValue: '', brokerageIsPaid: false, brokeragePaidOn: '', brokeragePaymentMode: 'CASH', brokerageChequeNumber: '', brokerageChequeDate: '', brokerageBankName: '', brokerageRemarks: '', rentInHand: '', rentBankTransfer: '', });
     setPdfFile(null); setDChequePhoto(null); setBChequePhoto(null);
     setErrors({}); setShowDeposit(false); setShowBroker(false);
     dispatch(getPropertySummary()).then(r => { if (r) setProperties(Array.isArray(r) ? r.filter(p => p.status === 'VACANT' && (p.is_active ?? p.isActive)) : []); });
@@ -59,6 +59,30 @@ const AgreementCreateModal = ({ isOpen, onClose, onSuccess }) => {
 
   const set = (f, v) => { setForm(p => ({ ...p, [f]: v })); setErrors(p => ({ ...p, [f]: undefined })); };
 
+  const setRentInHand = (v) => {
+    const bankTransfer = Number(form.rentBankTransfer) || 0;
+    const rent = Number(form.monthlyRent) || 0;
+    const newValue = Number(v) || 0;
+    
+    if (newValue + bankTransfer > rent && rent > 0) {
+      setErrors(p => ({ ...p, rentInHand: `Cannot exceed ₹${rent.toLocaleString('en-IN')} - ₹${bankTransfer.toLocaleString('en-IN')} = ₹${(rent - bankTransfer).toLocaleString('en-IN')}` }));
+      return;
+    }
+    set('rentInHand', v);
+  };
+
+  const setRentBankTransfer = (v) => {
+    const inHand = Number(form.rentInHand) || 0;
+    const rent = Number(form.monthlyRent) || 0;
+    const newValue = Number(v) || 0;
+    
+    if (inHand + newValue > rent && rent > 0) {
+      setErrors(p => ({ ...p, rentBankTransfer: `Cannot exceed ₹${rent.toLocaleString('en-IN')} - ₹${inHand.toLocaleString('en-IN')} = ₹${(rent - inHand).toLocaleString('en-IN')}` }));
+      return;
+    }
+    set('rentBankTransfer', v);
+  };
+
   const validate = () => {
     const e = {};
     if (!form.propertyId)    e.propertyId    = 'Select a property.';
@@ -66,6 +90,16 @@ const AgreementCreateModal = ({ isOpen, onClose, onSuccess }) => {
     if (!form.durationMonths) e.durationMonths = 'Select duration.';
     if (!form.startDate)     e.startDate     = 'Start date required.';
     if (!form.monthlyRent || Number(form.monthlyRent) <= 0) e.monthlyRent = 'Enter valid rent.';
+    const inHand   = Number(form.rentInHand);
+    const bankXfer = Number(form.rentBankTransfer);
+    const rent     = Number(form.monthlyRent);
+    if (form.rentInHand !== '' || form.rentBankTransfer !== '') {
+      if (!form.rentInHand || inHand < 0)   e.rentInHand      = 'Enter valid amount.';
+      if (!form.rentBankTransfer || bankXfer < 0) e.rentBankTransfer = 'Enter valid amount.';
+      if (!e.rentInHand && !e.rentBankTransfer && Math.abs(inHand + bankXfer - rent) > 0.01) {
+        e.rentBankTransfer = `In-Hand + Bank Transfer must equal ₹${rent.toLocaleString('en-IN')}.`;
+      }
+    }
     if (!form.rentDueDay || Number(form.rentDueDay) < 1 || Number(form.rentDueDay) > 28) e.rentDueDay = '1–28 only.';
     if (!form.depositAmount || Number(form.depositAmount) <= 0) e.depositAmount = 'Enter valid deposit.';
     if (form.gstApplicable) {
@@ -108,6 +142,8 @@ const AgreementCreateModal = ({ isOpen, onClose, onSuccess }) => {
       fd.append('gstInclusive', String(form.gstInclusive));
       if (form.gstBillingType === 'ALTERNATE_MONTH') fd.append('gstAlternateStartsOn', form.gstAlternateStartsOn);
     }
+    if (form.rentInHand !== '')       fd.append('rentInHand',       form.rentInHand);
+    if (form.rentBankTransfer !== '') fd.append('rentBankTransfer',  form.rentBankTransfer);
     if (pdfFile) fd.append('agreementPdf', pdfFile);
     if (showDeposit && form.depositReceivedOn) {
       fd.append('depositReceivedOn',  form.depositReceivedOn);
@@ -262,6 +298,33 @@ const AgreementCreateModal = ({ isOpen, onClose, onSuccess }) => {
                     {errors.depositAmount && <p className="text-xs mt-1" style={{ color: 'var(--danger)' }}>{errors.depositAmount}</p>}
                   </div>
                 </div>
+                {/* Rent Split - Full Width */}
+                {Number(form.monthlyRent) > 0 && (
+                  <div className="p-3 rounded-lg space-y-3" style={{ backgroundColor: 'var(--surface-bg)', border: '1px solid var(--surface-border)' }}>
+                    <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Rent Split (optional)</p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-main)' }}>In-Hand (₹)</label>
+                        <input type="number" value={form.rentInHand} onChange={e => setRentInHand(e.target.value)} min="0" placeholder="0"
+                          className="w-full px-3 py-2 rounded-lg border text-sm outline-none"
+                          style={{ borderColor: errors.rentInHand ? 'var(--danger)' : 'var(--surface-border)', backgroundColor: 'var(--surface-bg)', color: 'var(--text-main)' }} />
+                        {errors.rentInHand && <p className="text-xs mt-1" style={{ color: 'var(--danger)' }}>{errors.rentInHand}</p>}
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-main)' }}>Bank Transfer (₹) <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>(GST applies on this)</span></label>
+                        <input type="number" value={form.rentBankTransfer} onChange={e => setRentBankTransfer(e.target.value)} min="0" placeholder="0"
+                          className="w-full px-3 py-2 rounded-lg border text-sm outline-none"
+                          style={{ borderColor: errors.rentBankTransfer ? 'var(--danger)' : 'var(--surface-border)', backgroundColor: 'var(--surface-bg)', color: 'var(--text-main)' }} />
+                        {errors.rentBankTransfer && <p className="text-xs mt-1" style={{ color: 'var(--danger)' }}>{errors.rentBankTransfer}</p>}
+                      </div>
+                    </div>
+                    {form.rentInHand !== '' && form.rentBankTransfer !== '' && !errors.rentInHand && !errors.rentBankTransfer && (
+                      Math.abs(Number(form.rentInHand) + Number(form.rentBankTransfer) - Number(form.monthlyRent)) <= 0.01
+                        ? <p className="text-xs" style={{ color: 'var(--brand-primary)' }}>✓ Split matches total rent</p>
+                        : <p className="text-xs" style={{ color: 'var(--danger)' }}>Sum must equal ₹{Number(form.monthlyRent).toLocaleString('en-IN')}</p>
+                    )}
+                  </div>
+                )}
                 {/* Escalation — only if duration > 11 */}
                 {dur > 11 && (
                   <div>

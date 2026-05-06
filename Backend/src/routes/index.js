@@ -22,5 +22,6 @@ router.use('/agreements', require('../modules/agreement/agreement.routes'));
 router.use('/payments', require('../modules/payment/payment.routes'));
 router.use('/dashboard',     require('../modules/dashboard/dashboard.routes'));
 router.use('/reports', require('../modules/reports/reports.routes'));
+router.use('/files', require('../modules/files/files.routes'));
 
 module.exports = router;

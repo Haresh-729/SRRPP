@@ -1,24 +1,31 @@
-﻿const nodemailer = require('nodemailer');
+﻿const { BrevoClient } = require('@getbrevo/brevo');
 const env = require('./env');
 const logger = require('./logger');
 
-const transporter = nodemailer.createTransport({
-  host: env.MAIL_HOST,
-  port: env.MAIL_PORT,
-  secure: env.MAIL_PORT === 465,
-  auth: {
-    user: env.MAIL_USER,
-    pass: env.MAIL_PASS,
-  },
-});
+const brevoClient = env.BREVO_API_KEY
+  ? new BrevoClient({ apiKey: env.BREVO_API_KEY })
+  : null;
 
-const verifyMailer = async () => {
-  try {
-    await transporter.verify();
-    logger.info('✅ Nodemailer connected successfully');
-  } catch (error) {
-    logger.warn(`⚠️  Nodemailer connection failed: ${error.message}`);
+const sendEmail = async ({ to, subject, html, text }) => {
+  if (!brevoClient) {
+    throw new Error('BREVO_API_KEY is not configured.');
   }
+
+  return brevoClient.transactionalEmails.sendTransacEmail({
+    sender: { name: env.BREVO_FROM_NAME, email: env.BREVO_FROM_EMAIL },
+    to: [{ email: to }],
+    subject,
+    htmlContent: html,
+    textContent: text,
+  });
 };
 
-module.exports = { transporter, verifyMailer };
+const verifyMailer = async () => {
+  if (!env.BREVO_API_KEY) {
+    logger.warn('⚠️  BREVO_API_KEY not set — emails will not send.');
+    return;
+  }
+  logger.info('✅ Brevo email client configured');
+};
+
+module.exports = { sendEmail, verifyMailer };

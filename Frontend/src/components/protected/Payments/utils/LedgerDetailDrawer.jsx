@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { IconBook, IconBook2, IconX } from '@tabler/icons-react';
 import { getLedgerById } from '../../../../services/repository/PaymentRepo.js';
+import { resolveMediaUrl } from '../../../../services/utils/media.js';
+import ImagePreviewModal from '../../../common/ImagePreviewModal.jsx';
 import RecordPaymentModal from './RecordPaymentModal.jsx';
 
 const fmt      = (iso) => iso ? new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
@@ -20,6 +22,8 @@ const LedgerDetailDrawer = ({ isOpen, ledgerId, onClose, onPaymentSuccess }) => 
   const [ledger, setLedger]       = useState(null);
   const [loading, setLoading]     = useState(false);
   const [recordModal, setRecordModal] = useState(false);
+  const [previewSrc, setPreviewSrc] = useState('');
+  const [previewTitle, setPreviewTitle] = useState('');
 
   const fetchLedger = () => {
     if (!ledgerId) return;
@@ -198,10 +202,17 @@ const LedgerDetailDrawer = ({ isOpen, ledgerId, onClose, onPaymentSuccess }) => 
                           <p className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>{p.upi_transaction_id}</p>
                         )}
                         {p.cheque_photo && (
-                          <a href={p.cheque_photo} target="_blank" rel="noopener noreferrer">
-                            <img src={p.cheque_photo} alt="Cheque" className="w-16 h-12 object-cover rounded mt-2 border cursor-pointer hover:opacity-80"
+                          <button
+                            type="button"
+                            className="text-left"
+                            onClick={() => {
+                              setPreviewSrc(resolveMediaUrl(p.cheque_photo));
+                              setPreviewTitle(`Cheque Photo #${i + 1}`);
+                            }}
+                          >
+                            <img src={resolveMediaUrl(p.cheque_photo)} alt="Cheque" className="w-16 h-12 object-cover rounded mt-2 border cursor-pointer hover:opacity-80"
                               style={{ borderColor: 'var(--surface-border)' }} />
-                          </a>
+                          </button>
                         )}
                         {p.remarks && <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Remarks: {p.remarks}</p>}
                         <p className="text-[10px] mt-1.5" style={{ color: 'var(--text-muted)' }}>Recorded {fmtDT(p.created_at)}</p>

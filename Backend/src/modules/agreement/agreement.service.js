@@ -1,7 +1,7 @@
 ﻿const { prisma } = require('../../config/database');
 const AppError = require('../../utils/AppError');
 const { getPagination, getPaginationMeta } = require('../../utils/pagination');
-const { deleteFile, getFileUrl } = require('../../utils/fileHelper');
+const { uploadToS3, deleteFromS3, buildAgreementKey, buildPaymentKey } = require('../../utils/s3');
 const { buildRentCycles } = require('../../utils/rentCalculator');
 const emailService = require('../notifications/email.service');
 const logger = require('../../config/logger');
@@ -10,7 +10,7 @@ const logger = require('../../config/logger');
 
 const generateRentLedgers = (
   agreementId, propertyId, tenantId, cycles, durationMonths,
-  rentDueDay, startDate, gstApplicable, gstPercent, gstBillingType, gstAlternateStartsOn, gstInclusive
+  rentDueDay, startDate, gstApplicable, gstPercent, gstBillingType, gstAlternateStartsOn, gstInclusive, rentInHand
 ) => {
   const ledgers = [];
 
@@ -45,17 +45,25 @@ const generateRentLedgers = (
       }
 
       if (gstApplicableThisMonth) {
-        const grossRent = parseFloat(cycle.monthly_rent);
+        const totalCycleRent = parseFloat(cycle.monthly_rent);
         const percent = parseFloat(gstPercent);
 
+        // GST applies only on bank transfer portion
+        // In-hand stays fixed; escalation flows into bank transfer
+        const bankTransferPortion = rentInHand != null
+          ? Math.max(0, parseFloat((totalCycleRent - rentInHand).toFixed(2)))
+          : totalCycleRent;
+
         if (gstInclusive) {
-          const baseRent = parseFloat((grossRent / (1 + (percent / 100))).toFixed(2));
-          const gstPart = parseFloat((grossRent - baseRent).toFixed(2));
-          rentAmount = baseRent;
+          // GST is already baked into the bank transfer portion
+          const bankTransferBase = parseFloat((bankTransferPortion / (1 + percent / 100)).toFixed(2));
+          const gstPart = parseFloat((bankTransferPortion - bankTransferBase).toFixed(2));
+          rentAmount = parseFloat(((rentInHand || 0) + bankTransferBase).toFixed(2));
           gstAmount = gstPart;
         } else {
-          gstAmount = parseFloat(((grossRent * percent) / 100).toFixed(2));
-          rentAmount = grossRent;
+          // GST added on top of bank transfer portion
+          gstAmount = parseFloat(((bankTransferPortion * percent) / 100).toFixed(2));
+          rentAmount = totalCycleRent;
         }
       }
     }
@@ -154,6 +162,8 @@ const createAgreement = async (data, files) => {
     ? parseInt(data.gstAlternateStartsOn)
     : null;
   const gstInclusive         = gstApplicable && (data.gstInclusive === 'true' || data.gstInclusive === true);
+  const rentInHand        = data.rentInHand        ? parseFloat(data.rentInHand)        : null;
+  const rentBankTransfer  = data.rentBankTransfer   ? parseFloat(data.rentBankTransfer)  : null;
 
   // ── Validations ────────────────────────────────────────────────────────────
 
@@ -162,12 +172,10 @@ const createAgreement = async (data, files) => {
   });
 
   if (!property || !property.is_active) {
-    if (files?.agreementPdf?.[0]) deleteFile(files.agreementPdf[0].path);
     throw new AppError('Property not found or inactive.', 404);
   }
 
   if (property.status !== 'VACANT') {
-    if (files?.agreementPdf?.[0]) deleteFile(files.agreementPdf[0].path);
     throw new AppError('Property is already rented. Cannot create a new agreement.', 400);
   }
 
@@ -176,7 +184,6 @@ const createAgreement = async (data, files) => {
   });
 
   if (!tenant || !tenant.is_active) {
-    if (files?.agreementPdf?.[0]) deleteFile(files.agreementPdf[0].path);
     throw new AppError('Tenant not found or inactive.', 404);
   }
 
@@ -185,15 +192,21 @@ const createAgreement = async (data, files) => {
       where: { id: data.brokerId },
     });
     if (!broker || !broker.is_active) {
-      if (files?.agreementPdf?.[0]) deleteFile(files.agreementPdf[0].path);
       throw new AppError('Broker not found or inactive.', 404);
     }
   }
 
   // Validate broker + brokerage fields together
   if (data.brokerId && (!data.brokerageType || !data.brokerageValue)) {
-    if (files?.agreementPdf?.[0]) deleteFile(files.agreementPdf[0].path);
     throw new AppError('Brokerage type and value are required when a broker is provided.', 400);
+  }
+
+  let agreementPdfKey = null;
+  if (files?.agreementPdf?.[0]) {
+    const f = files.agreementPdf[0];
+    const year = new Date(data.startDate).getFullYear();
+    agreementPdfKey = buildAgreementKey(year, property.name, f.originalname);
+    await uploadToS3(f.buffer, agreementPdfKey, f.mimetype);
   }
 
   // ── Date calculations ──────────────────────────────────────────────────────
@@ -216,9 +229,7 @@ const createAgreement = async (data, files) => {
         property_id: data.propertyId,
         tenant_id: data.tenantId,
         broker_id: data.brokerId || null,
-        agreement_pdf: files?.agreementPdf?.[0]
-          ? getFileUrl(files.agreementPdf[0].path)
-          : null,
+        agreement_pdf: agreementPdfKey,
         duration_months: durationMonths,
         start_date: startDate,
         end_date: endDate,
@@ -232,6 +243,8 @@ const createAgreement = async (data, files) => {
         gst_billing_type:       gstBillingType,
         gst_alternate_starts_on: gstAlternateStartsOn,
         gst_is_inclusive:       gstInclusive,
+        rent_in_hand:        rentInHand,
+        rent_bank_transfer:  rentBankTransfer,
       },
     });
 
@@ -263,13 +276,21 @@ const createAgreement = async (data, files) => {
       gstPercent,
       gstBillingType,
       gstAlternateStartsOn,
-      gstInclusive
+      gstInclusive,
+      rentInHand
     );
 
     await tx.rent_ledgers.createMany({ data: ledgers });
 
     // 4. Deposit payment at creation (optional)
     if (data.depositReceivedOn && data.depositPaymentMode) {
+      let depositChequeKey = null;
+      if (files?.depositChequePhoto?.[0]) {
+        const f = files.depositChequePhoto[0];
+        depositChequeKey = buildPaymentKey('deposit-cheques', f.originalname);
+        await uploadToS3(f.buffer, depositChequeKey, f.mimetype);
+      }
+
       await tx.deposit_payments.create({
         data: {
           agreement_id: agreement.id,
@@ -279,9 +300,7 @@ const createAgreement = async (data, files) => {
           cheque_number: data.depositChequeNumber || null,
           cheque_date: data.depositChequeDate ? new Date(data.depositChequeDate) : null,
           bank_name: data.depositBankName || null,
-          cheque_photo: files?.depositChequePhoto?.[0]
-            ? getFileUrl(files.depositChequePhoto[0].path)
-            : null,
+          cheque_photo: depositChequeKey,
           remarks: data.depositRemarks || null,
         },
       });
@@ -296,6 +315,13 @@ const createAgreement = async (data, files) => {
       );
       const brokerageIsPaid =
         data.brokerageIsPaid === 'true' || data.brokerageIsPaid === true;
+
+      let brokerageChequeKey = null;
+      if (files?.brokerageChequePhoto?.[0]) {
+        const f = files.brokerageChequePhoto[0];
+        brokerageChequeKey = buildPaymentKey('brokerage-cheques', f.originalname);
+        await uploadToS3(f.buffer, brokerageChequeKey, f.mimetype);
+      }
 
       await tx.brokerage_payments.create({
         data: {
@@ -313,9 +339,7 @@ const createAgreement = async (data, files) => {
             ? new Date(data.brokerageChequeDate)
             : null,
           bank_name: data.brokerageBankName || null,
-          cheque_photo: files?.brokerageChequePhoto?.[0]
-            ? getFileUrl(files.brokerageChequePhoto[0].path)
-            : null,
+          cheque_photo: brokerageChequeKey,
           remarks: data.brokerageRemarks || null,
         },
       });
@@ -465,20 +489,28 @@ const getAgreementById = async (id, user) => {
 const updateAgreementPdf = async (id, file) => {
   if (!file) throw new AppError('Agreement PDF file is required.', 400);
 
-  const agreement = await prisma.agreements.findUnique({ where: { id } });
+  const agreement = await prisma.agreements.findUnique({
+    where: { id },
+    include: {
+      properties: {
+        select: { name: true },
+      },
+    },
+  });
 
   if (!agreement) {
-    deleteFile(file.path);
     throw new AppError('Agreement not found.', 404);
   }
 
-  if (agreement.agreement_pdf) {
-    deleteFile(agreement.agreement_pdf);
-  }
+  if (agreement.agreement_pdf) await deleteFromS3(agreement.agreement_pdf);
+
+  const year = new Date(agreement.start_date).getFullYear();
+  const key = buildAgreementKey(year, agreement.properties.name, file.originalname);
+  await uploadToS3(file.buffer, key, file.mimetype);
 
   const updated = await prisma.agreements.update({
     where: { id },
-    data: { agreement_pdf: getFileUrl(file.path) },
+    data: { agreement_pdf: key },
     select: { id: true, agreement_pdf: true, updated_at: true },
   });
 
@@ -546,7 +578,6 @@ const updateDepositPayment = async (agreementId, data, file) => {
   });
 
   if (!agreement) {
-    if (file) deleteFile(file.path);
     throw new AppError('Agreement not found.', 404);
   }
 
@@ -564,8 +595,10 @@ const updateDepositPayment = async (agreementId, data, file) => {
 
   // Handle cheque photo
   if (file) {
-    if (existing?.cheque_photo) deleteFile(existing.cheque_photo);
-    paymentData.cheque_photo = getFileUrl(file.path);
+    if (existing?.cheque_photo) await deleteFromS3(existing.cheque_photo);
+    const key = buildPaymentKey('deposit-cheques', file.originalname);
+    await uploadToS3(file.buffer, key, file.mimetype);
+    paymentData.cheque_photo = key;
   }
 
   let deposit;
@@ -593,12 +626,10 @@ const updateBrokeragePayment = async (agreementId, data, file) => {
   });
 
   if (!agreement) {
-    if (file) deleteFile(file.path);
     throw new AppError('Agreement not found.', 404);
   }
 
   if (!agreement.broker_id) {
-    if (file) deleteFile(file.path);
     throw new AppError('This agreement has no broker linked to it.', 400);
   }
 
@@ -625,8 +656,10 @@ const updateBrokeragePayment = async (agreementId, data, file) => {
 
   // Handle cheque photo
   if (file) {
-    if (existing?.cheque_photo) deleteFile(existing.cheque_photo);
-    paymentData.cheque_photo = getFileUrl(file.path);
+    if (existing?.cheque_photo) await deleteFromS3(existing.cheque_photo);
+    const key = buildPaymentKey('brokerage-cheques', file.originalname);
+    await uploadToS3(file.buffer, key, file.mimetype);
+    paymentData.cheque_photo = key;
   }
 
   let brokerage;

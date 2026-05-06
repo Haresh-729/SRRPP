@@ -1,7 +1,7 @@
 const { prisma } = require('../../config/database');
 const AppError = require('../../utils/AppError');
 const { getPagination, getPaginationMeta } = require('../../utils/pagination');
-const { deleteFile, getFileUrl } = require('../../utils/fileHelper');
+const { uploadToS3, deleteFromS3, buildPropertyKey } = require('../../utils/s3');
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -98,15 +98,20 @@ const createProperty = async (data, file) => {
       area_sq_ft: Number(data.areaSqFt),
       purchase_date: new Date(data.purchaseDate),
       purchase_amount: Number(data.purchaseAmount),
-      purchase_agreement_pdf: file ? getFileUrl(file.path) : null,
-      status: 'VACANT',
+      purchase_agreement_pdf: null,
+      is_active: true,
     },
-    include: {
-      property_types: {
-        select: { id: true, name: true, description: true, is_active: true, created_at: true, updated_at: true },
-      },
-    },
+    include: { property_types: true },
   });
+  if (file) {
+    const key = buildPropertyKey(property.id, file.originalname);
+    await uploadToS3(file.buffer, key, file.mimetype);
+    await prisma.properties.update({
+      where: { id: property.id },
+      data: { purchase_agreement_pdf: key },
+    });
+    property.purchase_agreement_pdf = key;
+  }
 
   return mapProperty(property);
 };
@@ -283,10 +288,10 @@ const updateProperty = async (id, data, file) => {
   };
 
   if (file) {
-    if (property.purchase_agreement_pdf) {
-      deleteFile(property.purchase_agreement_pdf);
-    }
-    updateData.purchase_agreement_pdf = getFileUrl(file.path);
+    if (property.purchase_agreement_pdf) await deleteFromS3(property.purchase_agreement_pdf);
+    const key = buildPropertyKey(property.id, file.originalname);
+    await uploadToS3(file.buffer, key, file.mimetype);
+    updateData.purchase_agreement_pdf = key;
   }
 
   const updated = await prisma.properties.update({

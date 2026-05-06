@@ -9,6 +9,7 @@ import {
 } from '../../../../services/repository/PropertyRepo.js';
 import { listActivePropertyTypes } from '../../../../services/repository/PropertyTypeRepo.js';
 import { selectAccount } from '../../../../app/DashboardSlice.js';
+import { resolveMediaUrl } from '../../../../services/utils/media.js';
 
 const MAX_PDF_MB = 10;
 const today = new Date().toISOString().split('T')[0];
@@ -157,7 +158,7 @@ const PropertyFormModal = ({ isOpen, mode, propertyId, onClose, onSuccess }) => 
         style={{ backgroundColor: 'var(--surface-card)', border: '1px solid var(--surface-border)' }}>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0"
+        <div className="flex items-center justify-between px-6 py-4 border-b shrink-0"
           style={{ borderColor: 'var(--surface-border)' }}>
           <h3 className="text-base font-semibold" style={{ color: 'var(--text-main)' }}>
             {mode === 'CREATE' ? 'Add Property' : 'Edit Property'}
@@ -255,7 +256,7 @@ const PropertyFormModal = ({ isOpen, mode, propertyId, onClose, onSuccess }) => 
                 <div className="flex items-center gap-3 p-3 rounded-lg border mb-2"
                   style={{ borderColor: 'var(--surface-border)', backgroundColor: 'var(--surface-bg)' }}>
                   <IconFileText size={18} style={{ color: 'var(--brand-primary)' }} />
-                  <a href={existingPdf} target="_blank" rel="noopener noreferrer"
+                  <a href={resolveMediaUrl(existingPdf)} target="_blank" rel="noopener noreferrer"
                     className="text-sm font-medium flex-1 truncate hover:underline"
                     style={{ color: 'var(--brand-primary)' }}>
                     View Agreement PDF
@@ -311,7 +312,7 @@ const PropertyFormModal = ({ isOpen, mode, propertyId, onClose, onSuccess }) => 
                   <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Inactive properties are hidden from users</p>
                 </div>
                 <button type="button" onClick={() => set('isActive', !form.isActive)}
-                  className="relative w-11 h-6 rounded-full transition-colors flex-shrink-0"
+                  className="relative w-11 h-6 rounded-full transition-colors shrink-0"
                   style={{ backgroundColor: form.isActive ? 'var(--brand-primary)' : 'var(--surface-border)' }}>
                   <span className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform"
                     style={{ transform: form.isActive ? 'translateX(-2px)' : 'translateX(-20px)' }} />
@@ -321,7 +322,7 @@ const PropertyFormModal = ({ isOpen, mode, propertyId, onClose, onSuccess }) => 
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t flex-shrink-0"
+          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t shrink-0"
             style={{ borderColor: 'var(--surface-border)' }}>
             <button type="button" onClick={handleClose} disabled={submitting}
               className="px-4 py-2 rounded-lg text-sm font-medium border disabled:opacity-50"

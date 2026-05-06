@@ -25,11 +25,9 @@ const env = {
   JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET,
   JWT_REFRESH_EXPIRES_IN: process.env.JWT_REFRESH_EXPIRES_IN || '30d',
 
-  MAIL_HOST: process.env.MAIL_HOST,
-  MAIL_PORT: parseInt(process.env.MAIL_PORT, 10) || 587,
-  MAIL_USER: process.env.MAIL_USER,
-  MAIL_PASS: process.env.MAIL_PASS,
-  MAIL_FROM: process.env.MAIL_FROM,
+  BREVO_API_KEY:    process.env.BREVO_API_KEY,
+  BREVO_FROM_EMAIL: process.env.BREVO_FROM_EMAIL,
+  BREVO_FROM_NAME:  process.env.BREVO_FROM_NAME || 'Raut Rentals',
 
   WHATSAPP_API_URL: process.env.WHATSAPP_API_URL,
   WHATSAPP_PHONE_NUMBER_ID: process.env.WHATSAPP_PHONE_NUMBER_ID,
@@ -38,12 +36,22 @@ const env = {
 
   MAX_FILE_SIZE_MB: parseInt(process.env.MAX_FILE_SIZE_MB, 10) || 10,
   UPLOAD_BASE_PATH: process.env.UPLOAD_BASE_PATH || 'uploads',
+
+  S3_ENDPOINT:          process.env.RAILWAY_S3_ENDPOINT,
+  S3_REGION:            process.env.RAILWAY_S3_REGION || 'auto',
+  S3_BUCKET:            process.env.RAILWAY_S3_BUCKET,
+  S3_ACCESS_KEY_ID:     process.env.RAILWAY_S3_ACCESS_KEY_ID,
+  S3_SECRET_ACCESS_KEY: process.env.RAILWAY_S3_SECRET_ACCESS_KEY,
 };
 
 const required = [
   'DATABASE_URL',
   'JWT_SECRET',
   'JWT_REFRESH_SECRET',
+  'S3_ENDPOINT',
+  'S3_BUCKET',
+  'S3_ACCESS_KEY_ID',
+  'S3_SECRET_ACCESS_KEY',
 ];
 
 required.forEach((key) => {

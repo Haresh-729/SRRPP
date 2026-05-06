@@ -4,6 +4,7 @@ import { IconX, IconFileText, IconEdit, IconBuildingSkyscraper } from '@tabler/i
 import { getPropertyById } from '../../../../services/repository/PropertyRepo.js';
 import { selectAccount } from '../../../../app/DashboardSlice.js';
 import { normalizeRole, ROLE_CODES } from '../../../../services/utils/rbac.js';
+import { resolveMediaUrl } from '../../../../services/utils/media.js';
 
 const fmt = (iso) => iso ? new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 const fmtMoney = (n) => n != null ? `₹${Number(n).toLocaleString('en-IN')}` : '—';
@@ -74,7 +75,7 @@ const PropertyDetailDrawer = ({ isOpen, propertyId, onClose, onEdit }) => {
     ...(property?.status === 'RENTED' ? [{ key: 'current', label: 'Current Agreement' }] : []),
   ];
 
-  const pdfUrl = property?.purchaseAgreementPdf || property?.purchase_agreement_pdf;
+  const pdfUrl = resolveMediaUrl(property?.purchaseAgreementPdf || property?.purchase_agreement_pdf);
 
   return (
     <>

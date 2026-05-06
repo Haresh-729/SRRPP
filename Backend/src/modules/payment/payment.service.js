@@ -1,7 +1,7 @@
 ﻿const { prisma } = require('../../config/database');
 const AppError = require('../../utils/AppError');
 const { getPagination, getPaginationMeta } = require('../../utils/pagination');
-const { deleteFile, getFileUrl } = require('../../utils/fileHelper');
+const { uploadToS3, buildPaymentKey } = require('../../utils/s3');
 const emailService = require('../notifications/email.service');
 const logger = require('../../config/logger');
 
@@ -45,7 +45,7 @@ const carryBalanceForward = async (tx, agreementId, currentLedgerMonth, balanceC
 
 // ── Internal: build payment data object ──────────────────────────────────────
 
-const buildPaymentData = (data, file, ledger, isAdvance = false) => ({
+const buildPaymentData = (data, chequeKey, ledger, isAdvance = false) => ({
   ledger_id: ledger.id,
   agreement_id: ledger.agreement_id,
   property_id: ledger.property_id,
@@ -55,7 +55,7 @@ const buildPaymentData = (data, file, ledger, isAdvance = false) => ({
   cheque_number: data.chequeNumber || null,
   cheque_date: data.chequeDate ? new Date(data.chequeDate) : null,
   bank_name: data.bankName || null,
-  cheque_photo: file ? getFileUrl(file.path) : null,
+  cheque_photo: chequeKey || null,
   upi_transaction_id: data.upiTransactionId || null,
   received_on: new Date(data.receivedOn),
   is_advance: isAdvance,
@@ -76,17 +76,14 @@ const recordPayment = async (ledgerId, data, file) => {
   });
 
   if (!ledger) {
-    if (file) deleteFile(file.path);
     throw new AppError('Rent ledger not found.', 404);
   }
 
   if (ledger.agreements.status !== 'ACTIVE') {
-    if (file) deleteFile(file.path);
     throw new AppError('Cannot record payment for a non-active agreement.', 400);
   }
 
   if (ledger.status === 'PAID') {
-    if (file) deleteFile(file.path);
     throw new AppError('This month rent is already fully paid.', 400);
   }
 
@@ -96,11 +93,16 @@ const recordPayment = async (ledgerId, data, file) => {
 
   // Overpayment guard
   if (currentPaid + incomingAmount > totalDue) {
-    if (file) deleteFile(file.path);
     throw new AppError(
       `Payment amount exceeds outstanding balance of ₹${(totalDue - currentPaid).toFixed(2)}. Use advance payment for future months.`,
       400
     );
+  }
+
+  let chequeKey = null;
+  if (file) {
+    chequeKey = buildPaymentKey('cheques', file.originalname);
+    await uploadToS3(file.buffer, chequeKey, file.mimetype);
   }
 
   const newPaidAmount = currentPaid + incomingAmount;
@@ -110,7 +112,7 @@ const recordPayment = async (ledgerId, data, file) => {
   const result = await prisma.$transaction(async (tx) => {
     // 1. Create payment record
     const payment = await tx.payments.create({
-      data: buildPaymentData(data, file, ledger, false),
+      data: buildPaymentData(data, chequeKey, ledger, false),
     });
 
     // 2. Update current ledger
@@ -173,12 +175,10 @@ const recordAdvancePayment = async (agreementId, data, file) => {
   });
 
   if (!agreement) {
-    if (file) deleteFile(file.path);
     throw new AppError('Agreement not found.', 404);
   }
 
   if (agreement.status !== 'ACTIVE') {
-    if (file) deleteFile(file.path);
     throw new AppError('Cannot record advance payment for a non-active agreement.', 400);
   }
 
@@ -193,12 +193,10 @@ const recordAdvancePayment = async (agreementId, data, file) => {
   });
 
   if (!targetLedger) {
-    if (file) deleteFile(file.path);
     throw new AppError(`No ledger found for month ${data.advanceForMonth} in this agreement.`, 404);
   }
 
   if (targetLedger.status === 'PAID') {
-    if (file) deleteFile(file.path);
     throw new AppError(`Rent for ${data.advanceForMonth} is already fully paid.`, 400);
   }
 
@@ -207,11 +205,16 @@ const recordAdvancePayment = async (agreementId, data, file) => {
   const totalDue = parseFloat(targetLedger.total_due);
 
   if (currentPaid + incomingAmount > totalDue) {
-    if (file) deleteFile(file.path);
     throw new AppError(
       `Advance payment exceeds outstanding balance of ₹${(totalDue - currentPaid).toFixed(2)} for ${data.advanceForMonth}.`,
       400
     );
+  }
+
+  let chequeKey = null;
+  if (file) {
+    chequeKey = buildPaymentKey('cheques', file.originalname);
+    await uploadToS3(file.buffer, chequeKey, file.mimetype);
   }
 
   const newPaidAmount = currentPaid + incomingAmount;
@@ -221,7 +224,7 @@ const recordAdvancePayment = async (agreementId, data, file) => {
   const result = await prisma.$transaction(async (tx) => {
     // 1. Create advance payment record
     const payment = await tx.payments.create({
-      data: buildPaymentData(data, file, targetLedger, true),
+      data: buildPaymentData(data, chequeKey, targetLedger, true),
     });
 
     // 2. Update target ledger

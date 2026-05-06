@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useDispatch } from 'react-redux';
 import { IconX, IconLoader2, IconUpload } from '@tabler/icons-react';
 import { updateAgreementDeposit } from '../../../../services/repository/AgreementRepo.js';
+import { resolveMediaUrl } from '../../../../services/utils/media.js';
+import ImagePreviewModal from '../../../common/ImagePreviewModal.jsx';
 
 const MODES = ['CASH', 'CHEQUE', 'UPI'];
 
@@ -11,6 +13,8 @@ const DepositModal = ({ isOpen, mode, agreementId, depositAmount, existing, onCl
   const [form, setForm]             = useState({ amount: '', receivedOn: '', paymentMode: 'CASH', chequeNumber: '', chequeDate: '', bankName: '', remarks: '' });
   const [photo, setPhoto]           = useState(null);
   const [errors, setErrors]         = useState({});
+  const [previewSrc, setPreviewSrc] = useState('');
+  const [previewTitle, setPreviewTitle] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -146,8 +150,17 @@ const DepositModal = ({ isOpen, mode, agreementId, depositAmount, existing, onCl
                 <div>
                   <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--text-main)' }}>Cheque Photo</label>
                   {mode === 'UPDATE' && existing?.cheque_photo && !photo && (
-                    <a href={existing.cheque_photo} target="_blank" rel="noopener noreferrer"
-                      className="text-xs block mb-2 hover:underline" style={{ color: 'var(--brand-primary)' }}>View existing photo</a>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPreviewSrc(resolveMediaUrl(existing.cheque_photo));
+                        setPreviewTitle('Existing Cheque Photo');
+                      }}
+                      className="text-xs block mb-2 hover:underline text-left"
+                      style={{ color: 'var(--brand-primary)' }}
+                    >
+                      View existing photo
+                    </button>
                   )}
                   <input ref={fileRef} type="file" accept="image/jpeg,image/png" onChange={e => setPhoto(e.target.files?.[0] || null)} className="hidden" />
                   <button type="button" onClick={() => fileRef.current?.click()}
