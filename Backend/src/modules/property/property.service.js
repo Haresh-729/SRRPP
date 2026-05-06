@@ -1,7 +1,7 @@
 const { prisma } = require('../../config/database');
 const AppError = require('../../utils/AppError');
 const { getPagination, getPaginationMeta } = require('../../utils/pagination');
-const { uploadToS3, deleteFromS3, buildPropertyKey } = require('../../utils/s3');
+const { uploadToS3, deleteFromS3, buildPropertyKey, getPresignedUrl } = require('../../utils/s3');
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -252,7 +252,17 @@ const getPropertyById = async (id, user) => {
     throw new AppError('Property not found.', 404);
   }
 
-  return mapProperty(property);
+  // Return short-lived view URL for purchase agreement PDF so clients can render private bucket objects directly.
+  const purchaseAgreementUrl = property.purchase_agreement_pdf
+    ? await getPresignedUrl(property.purchase_agreement_pdf, 3600).catch(() => null)
+    : null;
+
+  const mapped = mapProperty(property);
+  if (purchaseAgreementUrl) {
+    mapped.purchaseAgreementPdf = purchaseAgreementUrl;
+  }
+
+  return mapped;
 };
 
 const updateProperty = async (id, data, file) => {
