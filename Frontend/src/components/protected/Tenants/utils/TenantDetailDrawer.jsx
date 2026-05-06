@@ -311,6 +311,12 @@ const TenantDetailDrawer = ({ isOpen, tenantId, onClose, onEdit }) => {
           )}
         </div>
       </div>
+      <ImagePreviewModal
+        isOpen={Boolean(previewSrc)}
+        src={previewSrc}
+        title={previewTitle}
+        onClose={() => setPreviewSrc('')}
+      />
     </>
   );
 };

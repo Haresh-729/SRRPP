@@ -1,7 +1,7 @@
 ﻿const { prisma } = require('../../config/database');
 const AppError = require('../../utils/AppError');
 const { getPagination, getPaginationMeta } = require('../../utils/pagination');
-const { uploadToS3, deleteFromS3, buildTenantKey } = require('../../utils/s3');
+const { uploadToS3, deleteFromS3, buildTenantKey, getPresignedUrl } = require('../../utils/s3');
 const emailService = require('../notifications/email.service');
 const logger = require('../../config/logger');
 
@@ -239,8 +239,16 @@ const getTenantById = async (id) => {
     throw new AppError('Tenant not found.', 404);
   }
 
+  // Return short-lived view URLs so clients can render private bucket objects directly.
+  const [aadharPhotoUrl, panPhotoUrl] = await Promise.all([
+    tenant.aadhar_photo ? getPresignedUrl(tenant.aadhar_photo, 3600).catch(() => null) : Promise.resolve(null),
+    tenant.pan_photo ? getPresignedUrl(tenant.pan_photo, 3600).catch(() => null) : Promise.resolve(null),
+  ]);
+
   return {
     ...mapTenant(tenant),
+    aadharPhoto: aadharPhotoUrl || tenant.aadhar_photo,
+    panPhoto: panPhotoUrl || tenant.pan_photo,
     agreements: tenant.agreements.map((a) => ({
       ...mapAgreement(a),
       property: a.properties ? {
